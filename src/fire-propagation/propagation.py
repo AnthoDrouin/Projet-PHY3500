@@ -85,7 +85,21 @@ class Propagation:
 		"""
 		Initial conditions for Deffx and Deffy
 		"""
-		pass
+		threshold = 0.1 * np.max(self.grid["temp"]) + self.params.ambiant_temperature
+		print(threshold)
+		idx_closest = np.unravel_index(np.argmin(np.abs(self.grid["temp"] - threshold)), self.grid["temp"].shape)
+		# TODO: The computation of l_x and l_y might needs to be complexified
+		l_x = self.x[idx_closest[0], idx_closest[1]]
+		l_y = self.y[idx_closest[0], idx_closest[1]]
+		norm_l = np.sqrt(l_x ** 2 + l_y ** 2)
+		l_x = norm_l / np.sqrt(2)
+		l_y = norm_l / np.sqrt(2)
+		# Initially a gaussian, so it is expected that L_x = L_y
+
+		
+
+
+
 
 	def initial_conditions_advection_grid(self):
 		"""
@@ -139,6 +153,7 @@ class Propagation:
 		self.initial_condition_temp_grid()
 		self.initial_conditions_reaction_grid()
 		self.initial_conditions_advection_grid()
+		self.initial_conditions_dispersion_grid()
 
 	def run(self):
 		self.setup()
