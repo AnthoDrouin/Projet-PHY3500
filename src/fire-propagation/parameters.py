@@ -9,7 +9,7 @@ class Parameters:
 			u10: List[float],
 			z0: float,
 			delta: float,
-			fmc: float = 0.25,
+			fmc: float = 25,
 			height_canopy: float = 2,
 			ambiant_temperature: float = 300,
 			temperature_max_initial_condition: float = 1200,
@@ -32,6 +32,7 @@ class Parameters:
 			eta: float = 3,
 			alpha: float = 0.002,
 			epsilon: float = 0.2,
+			**kwargs: Dict[str, Any]
 	):
 		self.u10 = u10
 		self.z0 = z0
@@ -60,6 +61,8 @@ class Parameters:
 		self.alpha = alpha
 		self.epsilon = epsilon
 
+		self.kwargs = kwargs
+
 		self.gamma = None
 		self.lambda_ = None
 		self.c0, self.c1, self.c2, self.c3, self.c4 = None, None, None, None, None
@@ -80,15 +83,16 @@ class Parameters:
 		self.lambda_ = self.rho_gas / self.rho_solid
 
 	def _compute_coefficients(self):
-		#Variables coefficients
+		# Variables coefficients
+		m_s_2_0 = (self.alpha * self.rho_solid) / ((self.fmc / 100) + 1)
+		m_s_1_0 = (self.fmc / 100) * m_s_2_0
+		s_1_0 = m_s_1_0 / (self.alpha * self.rho_solid)
+		s_2_0 = m_s_2_0 / (self.alpha * self.rho_solid)
+		s_0 = s_1_0 + s_2_0
+		self.c0 = self.alpha * s_0 + (1 - self.alpha) * self.lambda_ * self.gamma + self.alpha * self.gamma * (1 - s_0)
+		self.c1 = self.c0 - self.alpha * s_0
 
-		ms_0 = self.alpha * self.rho_solid
-		m_g0 = self.alpha * self.rho_solid + (1 - self.alpha) * self.rho_gas - ms_0
-		water_and_combustible_fraction = 1 + ((1 - self.alpha) / self.alpha) * self.lambda_ - (m_g0 / ms_0)
-		self.c0 = self.alpha * water_and_combustible_fraction + (1 - self.alpha) * self.lambda_ * self.gamma + self.alpha * self.gamma * (1 - water_and_combustible_fraction)
-		self.c1 = self.c0 - self.alpha * water_and_combustible_fraction
-
-		#Fix coefficients
+		# Fix coefficients
 		self.c2 = self.alpha * self.a1 / self.heat_capacity_solid
 		self.c3 = self.alpha * self.a2 / self.heat_capacity_solid
 		self.c4 = 1 / (self.height_canopy * self.rho_solid * self.heat_capacity_solid)

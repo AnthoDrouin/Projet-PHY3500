@@ -12,10 +12,18 @@ class Propagation:
 			spacing: Tuple[float, float],
 			integration_time: float,
 			integration_step: float,
+			**kwargs: Dict[str, Any]
 	):
-		pass
+		self.parameters = parameters
+		self.grid_size = grid_size
+		self.spacing = spacing
+		self.integration_time = integration_time
+		self.integration_step = integration_step
 
 	def check_params(self):
+		pass
+
+	def initial_coefficients(self):
 		pass
 
 	def initial_conditions(self):
