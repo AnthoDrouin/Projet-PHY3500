@@ -6,7 +6,7 @@ class Parameters:
 
 	def __init__(
 			self,
-			u10: float,
+			u10: List[float],
 			z0: float,
 			delta: float,
 			fmc: float = 0.25,
@@ -60,6 +60,11 @@ class Parameters:
 		self.alpha = alpha
 		self.epsilon = epsilon
 
+		self.gamma = None
+		self.lambda_ = None
+		self.c0, self.c1, self.c2, self.c3, self.c4 = None, None, None, None, None
+		self.avg_canopy_velocity = [None, None]
+
 		self.compute_constant_params()
 
 	def compute_constant_params(self):
@@ -75,26 +80,46 @@ class Parameters:
 		self.lambda_ = self.rho_gas / self.rho_solid
 
 	def _compute_coefficients(self):
-		# c0 and c1 vary over time
+		#Variables coefficients
+
+		ms_0 = self.alpha * self.rho_solid
+		m_g0 = self.alpha * self.rho_solid + (1 - self.alpha) * self.rho_gas - ms_0
+		water_and_combustible_fraction = 1 + ((1 - self.alpha) / self.alpha) * self.lambda_ - (m_g0 / ms_0)
+		self.c0 = self.alpha * water_and_combustible_fraction + (1 - self.alpha) * self.lambda_ * self.gamma + self.alpha * self.gamma * (1 - water_and_combustible_fraction)
+		self.c1 = self.c0 - self.alpha * water_and_combustible_fraction
+
+		#Fix coefficients
 		self.c2 = self.alpha * self.a1 / self.heat_capacity_solid
 		self.c3 = self.alpha * self.a2 / self.heat_capacity_solid
 		self.c4 = 1 / (self.height_canopy * self.rho_solid * self.heat_capacity_solid)
 
 	def _compute_average_canopy_velocity(self):
 		kappa = 0.41
-		d = (self.height_canopy - self.z0) - (self.delta * self.u10)
-		friction_velocity = self.u10 * kappa / np.log(10 * d / self.z0)
+		u10_x, u10_y = self.u10
+
+		d_x = (self.height_canopy - self.z0) - (self.delta * u10_x)
+		d_y = (self.height_canopy - self.z0) - (self.delta * u10_y)
+
+		friction_velocity_x = u10_x * kappa / np.log(10 * d_x / self.z0)
+		friction_velocity_y = u10_y * kappa / np.log(10 * d_y / self.z0)
+
 		# velocity at the top of the canopy
-		u_h = (friction_velocity / kappa) * np.log((self.height_canopy - d) / self.z0)
-		self.avg_canopy_velocity = (u_h / self.eta) * (1 - np.exp(-self.eta))
+		u_h_x = (friction_velocity_x / kappa) * np.log((self.height_canopy - d_x) / self.z0)
+		u_h_y = (friction_velocity_y / kappa) * np.log((self.height_canopy - d_y) / self.z0)
+
+		avg_canopy_velocity_x = (u_h_x / self.eta) * (1 - np.exp(-self.eta))
+		avg_canopy_velocity_y = (u_h_y / self.eta) * (1 - np.exp(-self.eta))
+		self.avg_canopy_velocity = [avg_canopy_velocity_x, avg_canopy_velocity_y]
 
 
 if __name__ == "__main__":
 	# Example usage
-	params = Parameters(u10=10, z0=0.5, delta=0.08)
+	params = Parameters(u10=[10.0, 0.0], z0=0.5, delta=0.08)
 	print("Average Canopy Velocity:", params.avg_canopy_velocity)
 	print("Gamma:", params.gamma)
 	print("Lambda:", params.lambda_)
+	print("C0:", params.c0)
+	print("C1:", params.c1)
 	print("C2:", params.c2)
 	print("C3:", params.c3)
 	print("C4:", params.c4)
