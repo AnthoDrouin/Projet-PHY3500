@@ -12,7 +12,6 @@ class Parameters:
 			fmc: float = 25,
 			height_canopy: float = 2,
 			ambiant_temperature: float = 300,
-			temperature_max_initial_condition: float = 1200,
 			rho_gas: float = 1,
 			rho_solid: float = 700,
 			heat_capacity_gas: float = 1043,
@@ -32,6 +31,7 @@ class Parameters:
 			eta: float = 3,
 			alpha: float = 0.002,
 			epsilon: float = 0.2,
+			sigma: float = 20.0,
 			**kwargs: Dict[str, Any]
 	):
 		self.u10 = u10
@@ -40,7 +40,6 @@ class Parameters:
 		self.fmc = fmc
 		self.height_canopy = height_canopy
 		self.ambiant_temperature = ambiant_temperature
-		self.temperature_max_initial_condition = temperature_max_initial_condition
 		self.rho_gas = rho_gas
 		self.rho_solid = rho_solid
 		self.heat_capacity_gas = heat_capacity_gas
@@ -60,6 +59,7 @@ class Parameters:
 		self.eta = eta
 		self.alpha = alpha
 		self.epsilon = epsilon
+		self.sigma = sigma
 
 		self.kwargs = kwargs
 
