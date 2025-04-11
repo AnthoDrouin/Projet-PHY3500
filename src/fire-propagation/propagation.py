@@ -54,6 +54,8 @@ class Propagation:
 		assert self.spacing[0] > 0, "spacing[0] must be positive"
 		assert self.spacing[1] > 0, "spacing[1] must be positive"
 
+		assert self.params.theta == 0, "theta must be 0 for now, WILL BE IMPLEMENTED LATER"
+
 	def prepare_grid(self):
 		n = int(self.grid_size[0] / self.spacing[0])
 		x = np.linspace(0, self.grid_size[0] - self.spacing[0], n)
@@ -80,13 +82,24 @@ class Propagation:
 		)
 
 	def initial_conditions_dispersion_grid(self):
+		"""
+		Initial conditions for Deffx and Deffy
+		"""
 		pass
 
 	def initial_conditions_advection_grid(self):
 		"""
-		Initial condition for <u_effx>, <u_effy>, dT/dx, dT/dy
+		Initial condition for <u_effx>, <u_effy>
 		"""
-		pass
+		# TODO: IMPLEMENT u_buoy -> FOR NOW THETA=0 (else u_buoy needs to be computed...)
+		# I don't want/know how to implement I_B especially the rate of spread ROS
+
+		x_c = 1
+		self.grid["<u_x>"] = self.params.avg_canopy_velocity[0] * np.ones(self.misc["dim_grid"])  # Eq20 with S_2 = S_2_0 -> x_c = 1
+		self.grid["<u_y>"] = self.params.avg_canopy_velocity[1] * np.ones(self.misc["dim_grid"])
+		self.grid["<u_effx>"] = np.sqrt((self.grid["<u_x>"] * np.sin(self.params.psi))**2 + (self.grid["<u_x>"] * np.cos(self.params.psi))**2)
+		self.grid["<u_effy>"] = np.sqrt((self.grid["<u_y>"] * np.sin(self.params.psi))**2 + (self.grid["<u_y>"] * np.cos(self.params.psi))**2)
+
 
 	def initial_conditions_reaction_grid(self):
 		"""
@@ -125,6 +138,7 @@ class Propagation:
 		self.prepare_grid()
 		self.initial_condition_temp_grid()
 		self.initial_conditions_reaction_grid()
+		self.initial_conditions_advection_grid()
 
 	def run(self):
 		self.setup()
@@ -150,6 +164,28 @@ class Propagation:
 		:return: temp at the point (x, y)
 		"""
 		return temp_amb + (temp_max - temp_amb) * np.exp(-((x - x0) ** 2 + (y - y0) ** 2) / (2 * sigma ** 2))
+
+	@property
+	def d_temp_over_dx(self):
+		"""
+		Partial derivative of the temperature with respect to x.
+		"""
+		return np.gradient(self.grid["temp"], self.spacing[0], axis=0)
+
+	@property
+	def d2_temp_over_dx2(self):
+		return np.gradient(self.d_temp_over_dx, self.spacing[0], axis=0)
+
+	@property
+	def d_temp_over_dy(self):
+		"""
+		Partial derivative of the temperature with respect to y.
+		"""
+		return np.gradient(self.grid["temp"], self.spacing[1], axis=1)
+
+	@property
+	def d2_temp_over_dy2(self):
+		return np.gradient(self.d_temp_over_dy, self.spacing[1], axis=1)
 
 
 if __name__ == "__main__":

@@ -33,7 +33,6 @@ class Parameters:
 			epsilon: float = 0.2,
 			psi: float = 0,
 			theta: float = 0,
-			sigma: float = 20.0,
 			**kwargs: Dict[str, Any]
 	):
 		"""
@@ -56,7 +55,7 @@ class Parameters:
 		:param d_rb: Contribution of the radiation and buoyancy in the absence of wind (m^2/s)
 		:param r_m_0: Curve fit parameter for r_m (rate of oxygen delivery)
 		:param r_m_c: Curve fit parameter for r_m (rate of oxygen delivery)
-		:param gamma_d:
+		:param gamma_d: Increases or decreases the fireline length at which the asymptotic ROS is reached (m^-1)
 		:param a_nc: Sums up terms for the correlation Nu_{nc} = 0.15Gr^{1/3}Pr^{1/3} valid for a horizontal hot surface (W/m^2K^(4/3))
 		:param a_d: Constant for D_effx and D_effy
 		:param eta: Structure of air flow within crop canopies constant
@@ -100,6 +99,7 @@ class Parameters:
 		self.lambda_ = None
 		self.c0, self.c1, self.c2, self.c3, self.c4 = None, None, None, None, None
 		self.avg_canopy_velocity = [None, None]
+		self.avg_velocity_bare_ground = [None, None]
 
 		self.compute_constant_params()
 
@@ -108,6 +108,7 @@ class Parameters:
 		self._compute_lambda()
 		self._compute_coefficients()
 		self._compute_average_canopy_velocity()
+		self._compute_average_velocity_over_bare_ground()
 
 	def _compute_gamma(self):
 		self.gamma = self.heat_capacity_gas / self.heat_capacity_solid
@@ -139,6 +140,17 @@ class Parameters:
 		avg_canopy_velocity_y = (u_h_y / self.eta) * (1 - np.exp(-self.eta))
 		self.avg_canopy_velocity = [avg_canopy_velocity_x, avg_canopy_velocity_y]
 
+	def _compute_average_velocity_over_bare_ground(self):
+		kappa = 0.41
+		u_10_x, u10_y = self.u10
+
+		friction_velocity_bare_ground_x = u_10_x * kappa / np.log(10/self.z0)
+		friction_velocity_bare_ground_y = u10_y * kappa / np.log(10/self.z0)
+
+		avg_velocity_bare_ground_x = (friction_velocity_bare_ground_x / kappa) * ((self.height_canopy / (self.height_canopy - self.z0)) * np.log(self.height_canopy / self.z0) - 1)
+		avg_velocity_bare_ground_y = (friction_velocity_bare_ground_y / kappa) * ((self.height_canopy / (self.height_canopy - self.z0)) * np.log(self.height_canopy / self.z0) - 1)
+
+		self.avg_velocity_bare_ground = [avg_velocity_bare_ground_x, avg_velocity_bare_ground_y]
 
 if __name__ == "__main__":
 	# Example usage
