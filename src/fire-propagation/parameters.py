@@ -83,15 +83,6 @@ class Parameters:
 		self.lambda_ = self.rho_gas / self.rho_solid
 
 	def _compute_coefficients(self):
-		# Variables coefficients
-		m_s_2_0 = (self.alpha * self.rho_solid) / ((self.fmc / 100) + 1)
-		m_s_1_0 = (self.fmc / 100) * m_s_2_0
-		s_1_0 = m_s_1_0 / (self.alpha * self.rho_solid)
-		s_2_0 = m_s_2_0 / (self.alpha * self.rho_solid)
-		s_0 = s_1_0 + s_2_0
-		self.c0 = self.alpha * s_0 + (1 - self.alpha) * self.lambda_ * self.gamma + self.alpha * self.gamma * (1 - s_0)
-		self.c1 = self.c0 - self.alpha * s_0
-
 		# Fix coefficients
 		self.c2 = self.alpha * self.a1 / self.heat_capacity_solid
 		self.c3 = self.alpha * self.a2 / self.heat_capacity_solid
