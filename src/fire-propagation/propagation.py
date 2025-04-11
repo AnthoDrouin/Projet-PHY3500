@@ -35,6 +35,7 @@ class Propagation:
 
 		self.x, self.y = None, None
 		self.grid = {}
+		self.scalars = {}
 		self.misc = {}
 
 		self.run()
@@ -86,7 +87,6 @@ class Propagation:
 		Initial conditions for Deffx and Deffy
 		"""
 		threshold = 0.1 * np.max(self.grid["temp"]) + self.params.ambiant_temperature
-		print(threshold)
 		idx_closest = np.unravel_index(np.argmin(np.abs(self.grid["temp"] - threshold)), self.grid["temp"].shape)
 		# TODO: The computation of l_x and l_y might needs to be complexified
 		l_x = self.x[idx_closest[0], idx_closest[1]]
@@ -96,10 +96,17 @@ class Propagation:
 		l_y = norm_l / np.sqrt(2)
 		# Initially a gaussian, so it is expected that L_x = L_y
 
-		
+		w_x, w_y = self.fire_width
 
+		# It is initially a gaussian, so it is expected that W_x = W_y
+		w_norm = np.sqrt(w_x ** 2 + w_y ** 2)
+		w_x = w_norm / np.sqrt(2)
+		w_y = w_norm / np.sqrt(2)
 
-
+		self.scalars["Deffx"] = self.params.d_rb + self.params.a_d * self.params.avg_canopy_velocity[0] * l_x * (
+				1 - np.exp(-self.params.gamma_d * w_x))
+		self.scalars["Deffy"] = self.params.d_rb + self.params.a_d * self.params.avg_canopy_velocity[1] * l_y * (
+				1 - np.exp(-self.params.gamma_d * w_y))
 
 	def initial_conditions_advection_grid(self):
 		"""
@@ -109,11 +116,13 @@ class Propagation:
 		# I don't want/know how to implement I_B especially the rate of spread ROS
 
 		x_c = 1
-		self.grid["<u_x>"] = self.params.avg_canopy_velocity[0] * np.ones(self.misc["dim_grid"])  # Eq20 with S_2 = S_2_0 -> x_c = 1
+		self.grid["<u_x>"] = self.params.avg_canopy_velocity[0] * np.ones(
+			self.misc["dim_grid"])  # Eq20 with S_2 = S_2_0 -> x_c = 1
 		self.grid["<u_y>"] = self.params.avg_canopy_velocity[1] * np.ones(self.misc["dim_grid"])
-		self.grid["<u_effx>"] = np.sqrt((self.grid["<u_x>"] * np.sin(self.params.psi))**2 + (self.grid["<u_x>"] * np.cos(self.params.psi))**2)
-		self.grid["<u_effy>"] = np.sqrt((self.grid["<u_y>"] * np.sin(self.params.psi))**2 + (self.grid["<u_y>"] * np.cos(self.params.psi))**2)
-
+		self.grid["<u_effx>"] = np.sqrt(
+			(self.grid["<u_x>"] * np.sin(self.params.psi)) ** 2 + (self.grid["<u_x>"] * np.cos(self.params.psi)) ** 2)
+		self.grid["<u_effy>"] = np.sqrt(
+			(self.grid["<u_y>"] * np.sin(self.params.psi)) ** 2 + (self.grid["<u_y>"] * np.cos(self.params.psi)) ** 2)
 
 	def initial_conditions_reaction_grid(self):
 		"""
@@ -123,14 +132,15 @@ class Propagation:
 		m_s_2_0 = (self.params.alpha * self.params.rho_solid) / ((self.params.fmc / 100) + 1)
 		m_s_1_0 = (self.params.fmc / 100) * m_s_2_0
 		m_s_0 = self.params.alpha * self.params.rho_solid
-		m_g = self.params.alpha*self.params.rho_solid + (1 - self.params.alpha) * self.params.rho_gas - m_s_0
+		m_g = self.params.alpha * self.params.rho_solid + (1 - self.params.alpha) * self.params.rho_gas - m_s_0
 
 		s_1_0 = m_s_1_0 / (self.params.alpha * self.params.rho_solid)
 		s_2_0 = m_s_2_0 / (self.params.alpha * self.params.rho_solid)
 		s_0 = s_1_0 + s_2_0
 
 		c0 = self.params.alpha * s_0 + (
-				1 - self.params.alpha) * self.params.lambda_ * self.params.gamma + self.params.alpha * self.params.gamma * (1 - s_0)
+				1 - self.params.alpha) * self.params.lambda_ * self.params.gamma + self.params.alpha * self.params.gamma * (
+				     1 - s_0)
 		c1 = c0 - self.params.alpha * s_0
 
 		# Setup grid
@@ -146,7 +156,13 @@ class Propagation:
 		self.grid["m_g"] = np.ones(self.misc["dim_grid"]) * m_g
 
 	def initial_conditions_convection(self):
-		pass
+		"""
+		Initial conditions for U(T-Ta)
+		"""
+		self.grid["U"] = (self.params.a_nc * ((self.grid["temp"] - self.params.ambiant_temperature) ** (1 / 3))) + (
+					self.params.epsilon * self.sigma_b * (
+						(self.grid["temp"] ** 2) + self.params.ambiant_temperature ** 2) * (
+								self.grid["temp"] + self.params.ambiant_temperature))
 
 	def setup(self):
 		self.prepare_grid()
@@ -154,12 +170,18 @@ class Propagation:
 		self.initial_conditions_reaction_grid()
 		self.initial_conditions_advection_grid()
 		self.initial_conditions_dispersion_grid()
+		self.initial_conditions_convection()
 
 	def run(self):
 		self.setup()
+
+		for i, t in enumerate(self.time):
+			pass
+
+	def compute_propagation(self):
 		pass
 
-	def tracker(self):
+	def update(self):
 		pass
 
 	def get_results(self):
@@ -201,6 +223,30 @@ class Propagation:
 	@property
 	def d2_temp_over_dy2(self):
 		return np.gradient(self.d_temp_over_dy, self.spacing[1], axis=1)
+
+	@property
+	def fire_width(self):
+		idx_max_temp_x = np.argmax(self.grid["temp"], axis=0)
+		# Max temperature in each column (for each x) -> Return the index of the ROW
+
+		max_temp = np.max(self.grid["temp"], axis=0)
+		max_temp_x = self.x[0, :]
+		max_temp_y = self.y[:, 0][idx_max_temp_x]
+
+		max_temp_x_550 = max_temp_x[np.where(max_temp > 550)]
+		max_temp_y_550 = max_temp_y[np.where(max_temp > 550)]
+
+		w_x = np.max(max_temp_x_550) - np.min(max_temp_x_550)
+		w_y = np.max(max_temp_y_550) - np.min(max_temp_y_550)
+
+		return w_x, w_y
+
+	@property
+	def sigma_b(self):
+		"""
+		:return: Stefan-Boltzmann constant
+		"""
+		return 5.670374419e-8
 
 
 if __name__ == "__main__":
