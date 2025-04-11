@@ -15,6 +15,7 @@ class Propagation:
 			integration_step: float,
 			temperature_max_initial_condition: float = 1200,
 			position_max_temp_initial: Tuple[float, float] = (0, 0),
+			sigma: float = 20.0,
 			**kwargs: Dict[str, Any]
 	):
 		self.params = parameters
@@ -25,6 +26,7 @@ class Propagation:
 
 		self.temperature_max_initial_condition = temperature_max_initial_condition
 		self.position_max_temp_initial = position_max_temp_initial
+		self.sigma = sigma
 
 		self.check_params()
 
@@ -64,17 +66,33 @@ class Propagation:
 		self.misc["dim_grid"] = dim_grid
 
 	def initial_condition_temp_grid(self):
+		"""
+		Initial conditions for the temperature grid.
+		"""
 		self.grid["temp"] = self.gaussian(
 			x=self.x,
 			y=self.y,
 			x0=self.position_max_temp_initial[0],
 			y0=self.position_max_temp_initial[1],
-			sigma=self.params.sigma,
+			sigma=self.sigma,
 			temp_max=self.temperature_max_initial_condition,
 			temp_amb=self.params.ambiant_temperature
 		)
 
-	def initial_conditions_grid(self):
+	def initial_conditions_dispersion_grid(self):
+		pass
+
+	def initial_conditions_advection_grid(self):
+		"""
+		Initial condition for <u_effx>, <u_effy>, dT/dx, dT/dy
+		"""
+		pass
+
+	def initial_conditions_reaction_grid(self):
+		"""
+		Initial conditions for the reaction grid. This implies the computation of the following parameters:
+		S, S1, S2, m_s, m_s1, m_s2, m_g, c0, c1
+		"""
 		m_s_2_0 = (self.params.alpha * self.params.rho_solid) / ((self.params.fmc / 100) + 1)
 		m_s_1_0 = (self.params.fmc / 100) * m_s_2_0
 		m_s_0 = self.params.alpha * self.params.rho_solid
@@ -100,10 +118,13 @@ class Propagation:
 		self.grid["m_s_2"] = np.ones(self.misc["dim_grid"]) * m_s_2_0
 		self.grid["m_g"] = np.ones(self.misc["dim_grid"]) * m_g
 
+	def initial_conditions_convection(self):
+		pass
+
 	def setup(self):
 		self.prepare_grid()
 		self.initial_condition_temp_grid()
-		self.initial_conditions_grid()
+		self.initial_conditions_reaction_grid()
 
 	def run(self):
 		self.setup()

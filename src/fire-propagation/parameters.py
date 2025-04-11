@@ -31,9 +31,41 @@ class Parameters:
 			eta: float = 3,
 			alpha: float = 0.002,
 			epsilon: float = 0.2,
+			psi: float = 0,
+			theta: float = 0,
 			sigma: float = 20.0,
 			**kwargs: Dict[str, Any]
 	):
+		"""
+		:param u10: Wind speed at 10m above ground level (m/s) [u10_x, u10_y]
+		:param z0: Surface roughness at the top of the canopy (m)
+		:param delta: TODO
+		:param fmc: Fuel moisture content (%)
+		:param height_canopy: Height of the canopy (m)
+		:param ambiant_temperature: Ambient temperature (K)
+		:param rho_gas: Density of the gas (kg/m^3)
+		:param rho_solid: Density of the solid (kg/m^3)
+		:param heat_capacity_gas: Heat capacity of the gas (J/(kg*K))
+		:param heat_capacity_solid: Heat capacity of the solid (J/(kg*K))
+		:param cs1: Constant for r1 (s^-1)
+		:param cs2: Constant for r2 (s^-1)
+		:param b1: Quantify difference in behavior between dead and live moisture content (K)
+		:param b2: Depend on fuel characteristics and determine the intensity of pyrolysis and combustion (K)
+		:param a1: Standard heat of the endothermic (water vaporization) reaction (J/kg)
+		:param a2: Standard heat of the exothermic (pyrolysis and combustion) reaction (J/kg)
+		:param d_rb: Contribution of the radiation and buoyancy in the absence of wind (m^2/s)
+		:param r_m_0: Curve fit parameter for r_m (rate of oxygen delivery)
+		:param r_m_c: Curve fit parameter for r_m (rate of oxygen delivery)
+		:param gamma_d:
+		:param a_nc: Sums up terms for the correlation Nu_{nc} = 0.15Gr^{1/3}Pr^{1/3} valid for a horizontal hot surface (W/m^2K^(4/3))
+		:param a_d: Constant for D_effx and D_effy
+		:param eta: Structure of air flow within crop canopies constant
+		:param alpha: Packing ratio of solids (solid m^3/total m^3)
+		:param epsilon:
+		:param psi: Angle between the wind direction and upslope direction
+		:param theta: Inclination of the slope
+		:param kwargs:
+		"""
 		self.u10 = u10
 		self.z0 = z0
 		self.delta = delta
@@ -59,7 +91,8 @@ class Parameters:
 		self.eta = eta
 		self.alpha = alpha
 		self.epsilon = epsilon
-		self.sigma = sigma
+		self.psi = psi
+		self.theta = theta
 
 		self.kwargs = kwargs
 
