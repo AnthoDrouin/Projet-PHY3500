@@ -36,7 +36,10 @@ class Propagation:
 		self.x, self.y = None, None
 		self.grid = {}
 		self.scalars = {}
-		self.misc = {}
+		self.misc = {
+			"index": 0,
+			"current_time": 0,
+		}
 
 		self.run()
 
@@ -82,7 +85,7 @@ class Propagation:
 			temp_amb=self.params.ambiant_temperature
 		)
 
-	def initial_conditions_dispersion_grid(self):
+	def update_dispersion_grid(self):
 		"""
 		Initial conditions for Deffx and Deffy
 		"""
@@ -91,38 +94,40 @@ class Propagation:
 		# TODO: The computation of l_x and l_y might needs to be complexified
 		l_x = self.x[idx_closest[0], idx_closest[1]]
 		l_y = self.y[idx_closest[0], idx_closest[1]]
-		norm_l = np.sqrt(l_x ** 2 + l_y ** 2)
-		l_x = norm_l / np.sqrt(2)
-		l_y = norm_l / np.sqrt(2)
-		# Initially a gaussian, so it is expected that L_x = L_y
+		if self.misc["index"] == 0:
+			norm_l = np.sqrt(l_x ** 2 + l_y ** 2)
+			l_x = norm_l / np.sqrt(2)
+			l_y = norm_l / np.sqrt(2)
+			# Initially a gaussian, so it is expected that L_x = L_y
 
 		w_x, w_y = self.fire_width
 
-		# It is initially a gaussian, so it is expected that W_x = W_y
-		w_norm = np.sqrt(w_x ** 2 + w_y ** 2)
-		w_x = w_norm / np.sqrt(2)
-		w_y = w_norm / np.sqrt(2)
+		if self.misc["index"] == 0:
+			# It is initially a gaussian, so it is expected that W_x = W_y
+			w_norm = np.sqrt(w_x ** 2 + w_y ** 2)
+			w_x = w_norm / np.sqrt(2)
+			w_y = w_norm / np.sqrt(2)
 
 		self.scalars["Deffx"] = self.params.d_rb + self.params.a_d * self.params.avg_canopy_velocity[0] * l_x * (
 				1 - np.exp(-self.params.gamma_d * w_x))
 		self.scalars["Deffy"] = self.params.d_rb + self.params.a_d * self.params.avg_canopy_velocity[1] * l_y * (
 				1 - np.exp(-self.params.gamma_d * w_y))
 
-	def initial_conditions_advection_grid(self):
+	def update_advection_grid(self):
 		"""
 		Initial condition for <u_effx>, <u_effy>
 		"""
 		# TODO: IMPLEMENT u_buoy -> FOR NOW THETA=0 (else u_buoy needs to be computed...)
 		# I don't want/know how to implement I_B especially the rate of spread ROS
 
-		x_c = 1
-		self.grid["<u_x>"] = self.params.avg_canopy_velocity[0] * np.ones(
-			self.misc["dim_grid"])  # Eq20 with S_2 = S_2_0 -> x_c = 1
-		self.grid["<u_y>"] = self.params.avg_canopy_velocity[1] * np.ones(self.misc["dim_grid"])
+		x_c = self.grid["s_2"] / self.misc["s_2_0"]
+		self.grid["<u_x>"] = (self.params.avg_canopy_velocity[0] + (self.params.avg_velocity_bare_ground[0] - self.params.avg_canopy_velocity[0])) * np.ones(self.misc["dim_grid"])  # Eq20 with S_2 = S_2_0 -> x_c = 1
+		self.grid["<u_y>"] = (self.params.avg_canopy_velocity[1] + (self.params.avg_velocity_bare_ground[1] - self.params.avg_canopy_velocity[1])) * np.ones(self.misc["dim_grid"])  # Eq20 with S_2 = S_2_0 -> x_c = 1
 		self.grid["<u_effx>"] = np.sqrt(
 			(self.grid["<u_x>"] * np.sin(self.params.psi)) ** 2 + (self.grid["<u_x>"] * np.cos(self.params.psi)) ** 2)
 		self.grid["<u_effy>"] = np.sqrt(
 			(self.grid["<u_y>"] * np.sin(self.params.psi)) ** 2 + (self.grid["<u_y>"] * np.cos(self.params.psi)) ** 2)
+
 
 	def initial_conditions_reaction_grid(self):
 		"""
@@ -154,8 +159,16 @@ class Propagation:
 		self.grid["m_s_1"] = np.ones(self.misc["dim_grid"]) * m_s_1_0
 		self.grid["m_s_2"] = np.ones(self.misc["dim_grid"]) * m_s_2_0
 		self.grid["m_g"] = np.ones(self.misc["dim_grid"]) * m_g
+		self.grid["r1"] = np.zeros(self.misc["dim_grid"])
+		self.grid["r2t"] = np.zeros(self.misc["dim_grid"])
 
-	def initial_conditions_convection(self):
+
+		self.misc["s_2_0"] = s_2_0
+
+	def update_reaction_grid(self):
+		pass
+
+	def update_convection(self):
 		"""
 		Initial conditions for U(T-Ta)
 		"""
@@ -168,9 +181,9 @@ class Propagation:
 		self.prepare_grid()
 		self.initial_condition_temp_grid()
 		self.initial_conditions_reaction_grid()
-		self.initial_conditions_advection_grid()
-		self.initial_conditions_dispersion_grid()
-		self.initial_conditions_convection()
+		self.update_advection_grid()
+		self.update_dispersion_grid()
+		self.update_convection()
 
 	def run(self):
 		self.setup()
@@ -178,8 +191,21 @@ class Propagation:
 		for i, t in enumerate(self.time):
 			pass
 
-	def compute_propagation(self):
-		pass
+	@property
+	def d_Temp_over_d_time(self):
+		"""
+		Compute dT/dt with the current parameters
+		:return: dT/dt
+		"""
+		# DISPERSION #
+		dispersion = self.grid["Deffx"] * self.d2_temp_over_dx2 + self.grid["Deffy"] * self.d2_temp_over_dy2
+
+		# ADVECTION #
+		advection = self.grid["<u_effx>"] * self.d_temp_over_dx + self.grid["<u_effy>"] * self.d_temp_over_dy
+
+		# REACTION #
+
+		return None
 
 	def update(self):
 		pass
