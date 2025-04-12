@@ -2,6 +2,7 @@ import numpy as np
 from typing import List, Tuple, Dict, Any
 from parameters import Parameters
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 class Propagation:
@@ -37,7 +38,6 @@ class Propagation:
 		self.grid = {}
 		self.scalars = {}
 		self.misc = {
-			"index": 0,
 			"current_time": 0,
 		}
 
@@ -85,6 +85,16 @@ class Propagation:
 			temp_amb=self.params.ambiant_temperature
 		)
 
+		#self.grid["temp"] = np.zeros(self.misc["dim_grid"])
+		#height = 50
+		#width = 10
+		#center_y, center_x = 500, 500
+		#start_y = center_y - height // 2
+		#end_y = center_y + height // 2
+		#start_x = center_x - width // 2
+		#end_x = center_x + width // 2
+		#self.grid["temp"][start_y:end_y, start_x:end_x] = self.temperature_max_initial_condition
+
 	def update_dispersion_grid(self):
 		"""
 		Initial conditions for Deffx and Deffy
@@ -94,15 +104,15 @@ class Propagation:
 		# TODO: The computation of l_x and l_y might needs to be complexified
 		l_x = self.x[idx_closest[0], idx_closest[1]]
 		l_y = self.y[idx_closest[0], idx_closest[1]]
-		if self.misc["index"] == 0:
+		if self.misc["current_time"] == 0.0:
 			norm_l = np.sqrt(l_x ** 2 + l_y ** 2)
 			l_x = norm_l / np.sqrt(2)
 			l_y = norm_l / np.sqrt(2)
-			# Initially a gaussian, so it is expected that L_x = L_y
+		# Initially a gaussian, so it is expected that L_x = L_y
 
 		w_x, w_y = self.fire_width
 
-		if self.misc["index"] == 0:
+		if self.misc["current_time"] == 0.0:
 			# It is initially a gaussian, so it is expected that W_x = W_y
 			w_norm = np.sqrt(w_x ** 2 + w_y ** 2)
 			w_x = w_norm / np.sqrt(2)
@@ -120,95 +130,118 @@ class Propagation:
 		# TODO: IMPLEMENT u_buoy -> FOR NOW THETA=0 (else u_buoy needs to be computed...)
 		# I don't want/know how to implement I_B especially the rate of spread ROS
 
-		x_c = self.grid["s_2"] / self.misc["s_2_0"]
-		self.grid["<u_x>"] = (self.params.avg_canopy_velocity[0] + (self.params.avg_velocity_bare_ground[0] - self.params.avg_canopy_velocity[0])) * np.ones(self.misc["dim_grid"])  # Eq20 with S_2 = S_2_0 -> x_c = 1
-		self.grid["<u_y>"] = (self.params.avg_canopy_velocity[1] + (self.params.avg_velocity_bare_ground[1] - self.params.avg_canopy_velocity[1])) * np.ones(self.misc["dim_grid"])  # Eq20 with S_2 = S_2_0 -> x_c = 1
+		x_c = self.grid["s_2"] / self.scalars["s_2_0"]
+		self.grid["<u_x>"] = self.params.avg_canopy_velocity[0] + (self.params.avg_velocity_bare_ground[0] - self.params.avg_canopy_velocity[0]) * (1 - x_c)  # Eq20 with S_2 = S_2_0 -> x_c = 1
+		self.grid["<u_y>"] = self.params.avg_canopy_velocity[1] + (self.params.avg_velocity_bare_ground[1] - self.params.avg_canopy_velocity[1]) * (1 - x_c)  # Eq20 with S_2 = S_2_0 -> x_c = 1
 		self.grid["<u_effx>"] = np.sqrt(
 			(self.grid["<u_x>"] * np.sin(self.params.psi)) ** 2 + (self.grid["<u_x>"] * np.cos(self.params.psi)) ** 2)
 		self.grid["<u_effy>"] = np.sqrt(
 			(self.grid["<u_y>"] * np.sin(self.params.psi)) ** 2 + (self.grid["<u_y>"] * np.cos(self.params.psi)) ** 2)
 
-
 	def initial_conditions_reaction_grid(self):
+		"""
+		Initial parameters for the reaction grod, it includes:
+		m_s_0, m_s_1_0, m_s_2_0 and s_2_0
+		"""
+		self.scalars["m_s_0"] = self.params.alpha * self.params.rho_solid
+		self.scalars["m_s_2_0"] = (self.params.alpha * self.params.rho_solid) / ((self.params.fmc / 100) + 1)
+		self.scalars["m_s_1_0"] = (self.params.fmc / 100) * self.scalars["m_s_2_0"]
+
+		self.scalars["s_2_0"] = self.scalars["m_s_2_0"] / self.scalars["m_s_0"]
+
+	def update_reaction_grid(self):
 		"""
 		Initial conditions for the reaction grid. This implies the computation of the following parameters:
 		S, S1, S2, m_s, m_s1, m_s2, m_g, c0, c1
 		"""
-		m_s_2_0 = (self.params.alpha * self.params.rho_solid) / ((self.params.fmc / 100) + 1)
-		m_s_1_0 = (self.params.fmc / 100) * m_s_2_0
-		m_s_0 = self.params.alpha * self.params.rho_solid
-		m_g = self.params.alpha * self.params.rho_solid + (1 - self.params.alpha) * self.params.rho_gas - m_s_0
+		# Compute S, S1, S2
 
-		s_1_0 = m_s_1_0 / (self.params.alpha * self.params.rho_solid)
-		s_2_0 = m_s_2_0 / (self.params.alpha * self.params.rho_solid)
-		s_0 = s_1_0 + s_2_0
+		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
+		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (
+					self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
 
-		c0 = self.params.alpha * s_0 + (
+		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
+		avg_velocity_through_canopy = np.sqrt(
+			self.params.avg_canopy_velocity[0] ** 2 + self.params.avg_canopy_velocity[1] ** 2)
+		r_m = self.params.r_m_0 + self.params.r_m_c * (avg_velocity_through_canopy - 1)
+		r_2t = (r_2 * r_m) / (r_2 + r_m)
+		s_2 = np.exp(-r_2t * self.misc["current_time"]) * (
+					self.scalars["m_s_2_0"] / (self.params.alpha * self.params.rho_solid))
+
+		s = s_1 + s_2
+
+		self.grid["s_1"] = s_1
+		self.grid["s_2"] = s_2
+		self.grid["s"] = s
+
+		self.grid["r_1"] = r_1
+		self.grid["r_2t"] = r_2t
+		# Compute c0, c1
+
+		c0 = self.params.alpha * s + (
 				1 - self.params.alpha) * self.params.lambda_ * self.params.gamma + self.params.alpha * self.params.gamma * (
-				     1 - s_0)
-		c1 = c0 - self.params.alpha * s_0
+					     1 - s)
+		c1 = c0 - self.params.alpha * s
 
-		# Setup grid
+		self.grid["c_0"] = c0
+		self.grid["c_1"] = c1
 
-		self.grid["c_0"] = np.ones(self.misc["dim_grid"]) * c0
-		self.grid["c_1"] = np.ones(self.misc["dim_grid"]) * c1
-		self.grid["s_1"] = np.ones(self.misc["dim_grid"]) * s_1_0
-		self.grid["s_2"] = np.ones(self.misc["dim_grid"]) * s_2_0
-		self.grid["s"] = np.ones(self.misc["dim_grid"]) * s_0
-		self.grid["m_s"] = np.ones(self.misc["dim_grid"]) * m_s_0
-		self.grid["m_s_1"] = np.ones(self.misc["dim_grid"]) * m_s_1_0
-		self.grid["m_s_2"] = np.ones(self.misc["dim_grid"]) * m_s_2_0
-		self.grid["m_g"] = np.ones(self.misc["dim_grid"]) * m_g
-		self.grid["r1"] = np.zeros(self.misc["dim_grid"])
-		self.grid["r2t"] = np.zeros(self.misc["dim_grid"])
+		# Compute, m_s, m_s1, m_s2, m_g
 
-
-		self.misc["s_2_0"] = s_2_0
-
-	def update_reaction_grid(self):
-		pass
+		self.grid["m_s_1"] = s_1 * self.scalars["m_s_0"]
+		self.grid["m_s_2"] = s_2 * self.scalars["m_s_0"]
+		self.grid["m_s"] = self.grid["m_s_1"].copy() + self.grid["m_s_2"].copy()
 
 	def update_convection(self):
 		"""
 		Initial conditions for U(T-Ta)
 		"""
-		self.grid["U"] = (self.params.a_nc * ((self.grid["temp"] - self.params.ambiant_temperature) ** (1 / 3))) + (
-					self.params.epsilon * self.sigma_b * (
-						(self.grid["temp"] ** 2) + self.params.ambiant_temperature ** 2) * (
-								self.grid["temp"] + self.params.ambiant_temperature))
+		self.grid["U"] = (self.params.a_nc * (np.cbrt(self.grid["temp"] - self.params.ambiant_temperature))) + (
+				self.params.epsilon * self.sigma_b * (
+				(self.grid["temp"] ** 2) + self.params.ambiant_temperature ** 2) * (
+						self.grid["temp"] + self.params.ambiant_temperature))
 
 	def setup(self):
 		self.prepare_grid()
 		self.initial_condition_temp_grid()
 		self.initial_conditions_reaction_grid()
-		self.update_advection_grid()
-		self.update_dispersion_grid()
-		self.update_convection()
+		self.update()
 
 	def run(self):
 		self.setup()
 
-		for i, t in enumerate(self.time):
-			pass
+		for t in tqdm(self.time):
+			current_temperature = self.grid["temp"].copy() + self.integration_step * self.d_temp_over_d_time()
+			self.grid["temp"] = current_temperature
+			self.misc["current_time"] = t
 
-	@property
-	def d_Temp_over_d_time(self):
+			self.update()
+
+	def d_temp_over_d_time(self):
 		"""
 		Compute dT/dt with the current parameters
 		:return: dT/dt
 		"""
 		# DISPERSION #
-		dispersion = self.grid["Deffx"] * self.d2_temp_over_dx2 + self.grid["Deffy"] * self.d2_temp_over_dy2
+		dispersion = self.scalars["Deffx"] * self.d2_temp_over_dx2 + self.scalars["Deffy"] * self.d2_temp_over_dy2
 
 		# ADVECTION #
-		advection = self.grid["<u_effx>"] * self.d_temp_over_dx + self.grid["<u_effy>"] * self.d_temp_over_dy
+		advection = -self.grid["<u_effx>"] * self.d_temp_over_dx - self.grid["<u_effy>"] * self.d_temp_over_dy
 
 		# REACTION #
+		reaction = -self.params.c2 * self.grid["s_1"] * self.grid["r_1"] + self.params.c3 * self.grid["s_2"] * self.grid["r_2t"]
 
-		return None
+		# CONVECTION #
+		convection = -self.params.c4 * self.grid["U"]
+		d_temp_dt = self.grid["c_1"] * (dispersion + advection) + reaction + convection
+
+		return d_temp_dt / self.grid["c_0"]
 
 	def update(self):
-		pass
+		self.update_reaction_grid()
+		self.update_advection_grid()
+		self.update_dispersion_grid()
+		self.update_convection()
 
 	def get_results(self):
 		pass
@@ -233,22 +266,22 @@ class Propagation:
 		"""
 		Partial derivative of the temperature with respect to x.
 		"""
-		return np.gradient(self.grid["temp"], self.spacing[0], axis=0)
+		return np.gradient(self.grid["temp"], self.spacing[0], axis=1)
 
 	@property
 	def d2_temp_over_dx2(self):
-		return np.gradient(self.d_temp_over_dx, self.spacing[0], axis=0)
+		return np.gradient(self.d_temp_over_dx, self.spacing[0], axis=1)
 
 	@property
 	def d_temp_over_dy(self):
 		"""
 		Partial derivative of the temperature with respect to y.
 		"""
-		return np.gradient(self.grid["temp"], self.spacing[1], axis=1)
+		return np.gradient(self.grid["temp"], self.spacing[1], axis=0)
 
 	@property
 	def d2_temp_over_dy2(self):
-		return np.gradient(self.d_temp_over_dy, self.spacing[1], axis=1)
+		return np.gradient(self.d_temp_over_dy, self.spacing[1], axis=0)
 
 	@property
 	def fire_width(self):

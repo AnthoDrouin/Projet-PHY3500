@@ -129,8 +129,8 @@ class Parameters:
 		d_x = (self.height_canopy - self.z0) - (self.delta * u10_x)
 		d_y = (self.height_canopy - self.z0) - (self.delta * u10_y)
 
-		friction_velocity_x = u10_x * kappa / np.log(10 * d_x / self.z0)
-		friction_velocity_y = u10_y * kappa / np.log(10 * d_y / self.z0)
+		friction_velocity_x = u10_x * kappa / np.log((10 - d_x) / self.z0)
+		friction_velocity_y = u10_y * kappa / np.log((10 - d_y) / self.z0)
 
 		# velocity at the top of the canopy
 		u_h_x = (friction_velocity_x / kappa) * np.log((self.height_canopy - d_x) / self.z0)
@@ -142,9 +142,9 @@ class Parameters:
 
 	def _compute_average_velocity_over_bare_ground(self):
 		kappa = 0.41
-		u_10_x, u10_y = self.u10
+		u10_x, u10_y = self.u10
 
-		friction_velocity_bare_ground_x = u_10_x * kappa / np.log(10/self.z0)
+		friction_velocity_bare_ground_x = u10_x * kappa / np.log(10/self.z0)
 		friction_velocity_bare_ground_y = u10_y * kappa / np.log(10/self.z0)
 
 		avg_velocity_bare_ground_x = (friction_velocity_bare_ground_x / kappa) * ((self.height_canopy / (self.height_canopy - self.z0)) * np.log(self.height_canopy / self.z0) - 1)
