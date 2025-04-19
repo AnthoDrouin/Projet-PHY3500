@@ -90,7 +90,7 @@ class Propagation:
 		# Initial condition as a rectangle (GRID 200X200 ONLY!!!)
 
 		self.grid["temp"] = np.zeros(self.misc["dim_grid"]) + self.params.ambiant_temperature
-		height = 30
+		height = 60
 		width = 10
 		center_y, center_x = 200, 200
 		start_y = center_y - height // 2
@@ -182,10 +182,10 @@ class Propagation:
 		"""
 		# Compute S, S1, S2
 
-		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
+		r_1 = self.params.cs1 * np.exp(-self.params.b1 / (self.grid["temp"] - self.params.ambiant_temperature))
 		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
 
-		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
+		r_2 = self.params.cs2 * np.exp(-self.params.b2 / (self.grid["temp"] - self.params.ambiant_temperature))
 		avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
 		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
 		r_m = 1e-3
@@ -322,8 +322,14 @@ class Propagation:
 		max_temp_x_550 = max_temp_x[np.where(max_temp > 550)]
 		max_temp_y_550 = max_temp_y[np.where(max_temp > 550)]
 
-		w_x = np.max(max_temp_x_550) - np.min(max_temp_x_550)
-		w_y = np.max(max_temp_y_550) - np.min(max_temp_y_550)
+		max_temp_pts = np.array([max_temp_x_550, max_temp_y_550])
+		distances = np.linalg.norm(max_temp_pts[:, :, None] - max_temp_pts[:, None, :], axis=0)
+		max_distance_idx = np.unravel_index(np.argmax(distances), distances.shape)
+		max_temp_pt1 = max_temp_pts[:, max_distance_idx[0]]
+		max_temp_pt2 = max_temp_pts[:, max_distance_idx[1]]
+
+		w_x = np.abs(max_temp_pt1[0] - max_temp_pt2[0])
+		w_y = np.abs(max_temp_pt1[1] - max_temp_pt2[1])
 
 		return w_x, w_y
 
