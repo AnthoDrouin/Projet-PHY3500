@@ -182,10 +182,10 @@ class Propagation:
 		"""
 		# Compute S, S1, S2
 
-		r_1 = self.params.cs1 * np.exp(-self.params.b1 / (self.grid["temp"] - self.params.ambiant_temperature))
+		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
 		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
 
-		r_2 = self.params.cs2 * np.exp(-self.params.b2 / (self.grid["temp"] - self.params.ambiant_temperature))
+		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
 		avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
 		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
 		r_m = 1e-3
