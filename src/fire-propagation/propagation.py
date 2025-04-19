@@ -90,9 +90,9 @@ class Propagation:
 		# Initial condition as a rectangle (GRID 200X200 ONLY!!!)
 
 		self.grid["temp"] = np.zeros(self.misc["dim_grid"]) + self.params.ambiant_temperature
-		height = 60
+		height = 30
 		width = 10
-		center_y, center_x = 200, 200
+		center_y, center_x = 200, 50
 		start_y = center_y - height // 2
 		end_y = center_y + height // 2
 		start_x = center_x - width // 2
@@ -183,6 +183,7 @@ class Propagation:
 		# Compute S, S1, S2
 
 		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
+
 		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
 
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
@@ -195,9 +196,14 @@ class Propagation:
 
 		s = s_1 + s_2
 
-		self.grid["s_1"] = s_1
-		self.grid["s_2"] = s_2
-		self.grid["s"] = s
+		if self.misc["current_time"] == 0.0:
+			self.grid["s_1"] = s_1
+			self.grid["s_2"] = s_2
+			self.grid["s"] = s
+		else:
+			self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
+			self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
+			self.grid["s"] = np.minimum(self.grid["s"], s)
 
 		self.grid["r_1"] = r_1
 		self.grid["r_2t"] = r_2t

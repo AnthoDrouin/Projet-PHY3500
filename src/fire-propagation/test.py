@@ -4,7 +4,7 @@ from parameters import Parameters
 from propagation import Propagation
 
 
-parameters = Parameters(u10=[5, 0], z0=0.25, delta=0.04)
+parameters = Parameters(u10=[3, 0], z0=0.25, delta=0.04)
 grid_size = (200, 200)
 spacing = (0.5, 0.5)
 integration_time = 400
@@ -21,7 +21,7 @@ propagation = Propagation(
 
 temp_matrix = propagation.grid["temp"]
 
-print(propagation.grid["s"])
+print(propagation.grid["temp"])
 
 x = propagation.x
 y = propagation.y
