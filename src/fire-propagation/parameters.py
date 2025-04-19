@@ -147,8 +147,8 @@ class Parameters:
 		friction_velocity_bare_ground_x = u10_x * kappa / np.log(10/self.z0)
 		friction_velocity_bare_ground_y = u10_y * kappa / np.log(10/self.z0)
 
-		avg_velocity_bare_ground_x = (friction_velocity_bare_ground_x / kappa) * ((self.height_canopy / (self.height_canopy - self.z0)) * np.log(self.height_canopy / self.z0) - 1)
-		avg_velocity_bare_ground_y = (friction_velocity_bare_ground_y / kappa) * ((self.height_canopy / (self.height_canopy - self.z0)) * np.log(self.height_canopy / self.z0) - 1)
+		avg_velocity_bare_ground_x = (friction_velocity_bare_ground_x / kappa) * (((self.height_canopy / (self.height_canopy - self.z0)) * np.log(self.height_canopy / self.z0)) - 1)
+		avg_velocity_bare_ground_y = (friction_velocity_bare_ground_y / kappa) * (((self.height_canopy / (self.height_canopy - self.z0)) * np.log(self.height_canopy / self.z0)) - 1)
 
 		self.avg_velocity_bare_ground = [avg_velocity_bare_ground_x, avg_velocity_bare_ground_y]
 

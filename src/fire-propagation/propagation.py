@@ -75,39 +75,45 @@ class Propagation:
 		"""
 		Initial conditions for the temperature grid.
 		"""
-		self.grid["temp"] = self.gaussian(
-			x=self.x,
-			y=self.y,
-			x0=self.position_max_temp_initial[0],
-			y0=self.position_max_temp_initial[1],
-			sigma=self.sigma,
-			temp_max=self.temperature_max_initial_condition,
-			temp_amb=self.params.ambiant_temperature
-		)
+		# Gaussian initial condition (any grid size)
 
-		#self.grid["temp"] = np.zeros(self.misc["dim_grid"])
-		#height = 50
-		#width = 10
-		#center_y, center_x = 500, 500
-		#start_y = center_y - height // 2
-		#end_y = center_y + height // 2
-		#start_x = center_x - width // 2
-		#end_x = center_x + width // 2
-		#self.grid["temp"][start_y:end_y, start_x:end_x] = self.temperature_max_initial_condition
+		#self.grid["temp"] = self.gaussian(
+		#	x=self.x,
+		#	y=self.y,
+		#	x0=self.position_max_temp_initial[0],
+		#	y0=self.position_max_temp_initial[1],
+		#	sigma=self.sigma,
+		#	temp_max=self.temperature_max_initial_condition,
+		#	temp_amb=self.params.ambiant_temperature
+		#)
+
+		# Initial condition as a rectangle (GRID 200X200 ONLY!!!)
+
+		self.grid["temp"] = np.zeros(self.misc["dim_grid"]) + self.params.ambiant_temperature
+		height = 30
+		width = 10
+		center_y, center_x = 200, 200
+		start_y = center_y - height // 2
+		end_y = center_y + height // 2
+		start_x = center_x - width // 2
+		end_x = center_x + width // 2
+		self.grid["temp"][start_y:end_y, start_x:end_x] = self.temperature_max_initial_condition
 
 	def update_dispersion_grid(self):
 		"""
 		Initial conditions for Deffx and Deffy
 		"""
-		threshold = 0.1 * np.max(self.grid["temp"]) + self.params.ambiant_temperature
-		idx_closest = np.unravel_index(np.argmin(np.abs(self.grid["temp"] - threshold)), self.grid["temp"].shape)
+		l_x, l_y = self.width_burning_zone
+		#threshold = 0.1 * np.max(self.grid["temp"]) + self.params.ambiant_temperature
+		#idx_closest = np.unravel_index(np.argmin(np.abs(self.grid["temp"] - threshold)), self.grid["temp"].shape)
 		# TODO: The computation of l_x and l_y might needs to be complexified
-		l_x = self.x[idx_closest[0], idx_closest[1]]
-		l_y = self.y[idx_closest[0], idx_closest[1]]
-		if self.misc["current_time"] == 0.0:
-			norm_l = np.sqrt(l_x ** 2 + l_y ** 2)
-			l_x = norm_l / np.sqrt(2)
-			l_y = norm_l / np.sqrt(2)
+		# TODO: MODIFICATION HERE -> ADD ABSOLUTE VALUE
+		#l_x = np.abs(self.x[idx_closest[0], idx_closest[1]])
+		#l_y = np.abs(self.y[idx_closest[0], idx_closest[1]])
+		#if self.misc["current_time"] == 0.0:
+		#	norm_l = np.sqrt(l_x ** 2 + l_y ** 2)
+		#	l_x = norm_l / np.sqrt(2)
+		#	l_y = norm_l / np.sqrt(2)
 		# Initially a gaussian, so it is expected that L_x = L_y
 
 		w_x, w_y = self.fire_width
@@ -122,6 +128,26 @@ class Propagation:
 				1 - np.exp(-self.params.gamma_d * w_x))
 		self.scalars["Deffy"] = self.params.d_rb + self.params.a_d * self.params.avg_canopy_velocity[1] * l_y * (
 				1 - np.exp(-self.params.gamma_d * w_y))
+
+	@property
+	def width_burning_zone(self):
+		threshold = 0.1 * np.max(self.grid["temp"]) + self.params.ambiant_temperature
+		idx_threshold_temp = np.unravel_index(np.argmin(np.abs(self.grid["temp"] - threshold)), self.grid["temp"].shape)
+		#test = np.abs(self.grid["temp"] - threshold)
+		#idx_threshold_temp = np.unravel_index(np.where(np.abs(self.grid["temp"] - threshold) < tol), self.grid["temp"].shape)
+		x_threshold_temp = self.x[idx_threshold_temp]
+		y_threshold_temp = self.y[idx_threshold_temp]
+
+		idx_max_temp = np.unravel_index(np.argmax(self.grid["temp"]), self.grid["temp"].shape)
+		x_max_temp = self.x[idx_max_temp]
+		y_max_temp = self.y[idx_max_temp]
+
+		l_x = np.abs(x_max_temp - x_threshold_temp)
+		l_y = np.abs(y_max_temp - y_threshold_temp)
+
+
+		return l_x, l_y
+
 
 	def update_advection_grid(self):
 		"""
@@ -157,13 +183,12 @@ class Propagation:
 		# Compute S, S1, S2
 
 		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
-		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (
-					self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
+		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
 
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
-		avg_velocity_through_canopy = np.sqrt(
-			self.params.avg_canopy_velocity[0] ** 2 + self.params.avg_canopy_velocity[1] ** 2)
-		r_m = self.params.r_m_0 + self.params.r_m_c * (avg_velocity_through_canopy - 1)
+		avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
+		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
+		r_m = 1e-3
 		r_2t = (r_2 * r_m) / (r_2 + r_m)
 		s_2 = np.exp(-r_2t * self.misc["current_time"]) * (
 					self.scalars["m_s_2_0"] / (self.params.alpha * self.params.rho_solid))
@@ -178,9 +203,7 @@ class Propagation:
 		self.grid["r_2t"] = r_2t
 		# Compute c0, c1
 
-		c0 = self.params.alpha * s + (
-				1 - self.params.alpha) * self.params.lambda_ * self.params.gamma + self.params.alpha * self.params.gamma * (
-					     1 - s)
+		c0 = self.params.alpha * s + ((1 - self.params.alpha) * self.params.lambda_ * self.params.gamma) + (self.params.alpha * self.params.gamma * (1 - s))
 		c1 = c0 - self.params.alpha * s
 
 		self.grid["c_0"] = c0
@@ -190,7 +213,7 @@ class Propagation:
 
 		self.grid["m_s_1"] = s_1 * self.scalars["m_s_0"]
 		self.grid["m_s_2"] = s_2 * self.scalars["m_s_0"]
-		self.grid["m_s"] = self.grid["m_s_1"].copy() + self.grid["m_s_2"].copy()
+		self.grid["m_s"] = self.grid["m_s_1"] + self.grid["m_s_2"]
 
 	def update_convection(self):
 		"""
@@ -237,11 +260,15 @@ class Propagation:
 
 		return d_temp_dt / self.grid["c_0"]
 
+	def border_conditions(self):
+		self.grid["temp"][self.grid["temp"] < self.params.ambiant_temperature] = self.params.ambiant_temperature
+
 	def update(self):
 		self.update_reaction_grid()
 		self.update_advection_grid()
 		self.update_dispersion_grid()
 		self.update_convection()
+		self.border_conditions()
 
 	def get_results(self):
 		pass
