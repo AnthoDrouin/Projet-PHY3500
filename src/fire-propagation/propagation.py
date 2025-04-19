@@ -77,15 +77,15 @@ class Propagation:
 		"""
 		# Gaussian initial condition (any grid size)
 
-		#self.grid["temp"] = self.gaussian(
-		#	x=self.x,
-		#	y=self.y,
-		#	x0=self.position_max_temp_initial[0],
-		#	y0=self.position_max_temp_initial[1],
-		#	sigma=self.sigma,
-		#	temp_max=self.temperature_max_initial_condition,
-		#	temp_amb=self.params.ambiant_temperature
-		#)
+		# self.grid["temp"] = self.gaussian(
+		# 	x=self.x,
+		# 	y=self.y,
+		# 	x0=self.position_max_temp_initial[0],
+		# 	y0=self.position_max_temp_initial[1],
+		# 	sigma=self.sigma,
+		# 	temp_max=self.temperature_max_initial_condition,
+		# 	temp_amb=self.params.ambiant_temperature
+		# )
 
 		# Initial condition as a rectangle (GRID 200X200 ONLY!!!)
 
@@ -98,6 +98,7 @@ class Propagation:
 		start_x = center_x - width // 2
 		end_x = center_x + width // 2
 		self.grid["temp"][start_y:end_y, start_x:end_x] = self.temperature_max_initial_condition
+
 
 	def update_dispersion_grid(self):
 		"""
@@ -183,10 +184,10 @@ class Propagation:
 		# Compute S, S1, S2
 
 		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
-
 		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
-
+		s_1[self.grid["temp"] > 500] = 0.0
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
+		r_2[self.grid["temp"] < 500] = 0.0
 		avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
 		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
 		r_m = 1e-3
@@ -203,7 +204,11 @@ class Propagation:
 		else:
 			self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
 			self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
-			self.grid["s"] = np.minimum(self.grid["s"], s)
+			self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
+  
+		# self.grid["s_1"] = s_1
+		# self.grid["s_2"] = s_2
+		# self.grid["s"] = s
 
 		self.grid["r_1"] = r_1
 		self.grid["r_2t"] = r_2t
