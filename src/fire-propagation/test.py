@@ -7,7 +7,7 @@ from propagation import Propagation
 parameters = Parameters(u10=[3, 0], z0=0.5, delta=0.08)
 grid_size = (200, 200)
 spacing = (0.5, 0.5)
-integration_time = 400
+integration_time = 800
 integration_step = 0.1
 
 propagation = Propagation(
