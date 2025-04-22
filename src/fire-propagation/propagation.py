@@ -215,18 +215,18 @@ class Propagation:
 
 		s = s_1 + s_2
 
-		# if self.misc["current_time"] == 0.0:
-		# 	self.grid["s_1"] = s_1
-		# 	self.grid["s_2"] = s_2
-		# 	self.grid["s"] = s
-		# else:
-		# 	self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
-		# 	self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
-		# 	self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
+		if self.misc["current_time"] == 0.0:
+			self.grid["s_1"] = s_1
+			self.grid["s_2"] = s_2
+			self.grid["s"] = s
+		else:
+			self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
+			self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
+			self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
 
-		self.grid["s_1"] = s_1
-		self.grid["s_2"] = s_2
-		self.grid["s"] = s
+		# self.grid["s_1"] = s_1
+		# self.grid["s_2"] = s_2
+		# self.grid["s"] = s
 
 		self.grid["r_1"] = r_1
 		self.grid["r_2t"] = r_2t
@@ -265,7 +265,8 @@ class Propagation:
 
 		prev_step = 0
 		prev_temperature = 0
-		for t in tqdm(self.time):
+		pbr = tqdm(self.time)
+		for t in pbr:
 			# AM
 			#if t == 0:
 			#	d_temp_over_d_time = self.d_temp_over_d_time()
@@ -281,6 +282,7 @@ class Propagation:
 				d_temp_over_d_time = self.d_temp_over_d_time()
 				current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
 				prev_temperature = self.grid["temp"]
+				pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
 			else:
 				d_temp_over_d_time = self.d_temp_over_d_time()
 				current_temperature = prev_temperature + 2 * self.integration_step * d_temp_over_d_time
@@ -288,11 +290,12 @@ class Propagation:
 
 			self.grid["temp"] = current_temperature
 			self.misc["current_time"] = t
-			print(self.grid["temp"].max())
+			pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
 			if current_temperature.max() < 575:
 				break
 
 			self.update()
+
 
 	def d_temp_over_d_time(self):
 		"""
