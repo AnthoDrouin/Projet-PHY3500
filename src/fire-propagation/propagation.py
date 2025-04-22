@@ -90,25 +90,25 @@ class Propagation:
 		# Initial condition as a rectangle (GRID 200X200 ONLY!!!)
 
 		self.grid["temp"] = np.zeros(self.misc["dim_grid"]) + self.params.ambiant_temperature
-		height = 30
+		height = 60
 		width = 10
-		center_y, center_x = 200, 50
+		center_y, center_x = 200, 100
 		start_y = center_y - height // 2
 		end_y = center_y + height // 2
 		start_x = center_x - width // 2
 		end_x = center_x + width // 2
 		self.grid["temp"][start_y:end_y, start_x:end_x] = self.temperature_max_initial_condition
 
-		sigma_y = height / 2
-		sigma_x = width / 2
-		y_range = np.arange(start_y, end_y)
-		x_range = np.arange(start_x, end_x)
-		Y, X = np.meshgrid(y_range, x_range, indexing="ij")
-		gaussian = np.exp(-(((Y - center_y) ** 2) / (2 * sigma_y ** 2) + ((X - center_x) ** 2) / (2 * sigma_x ** 2)))
-		T_max = self.temperature_max_initial_condition
-		T_amb = self.params.ambiant_temperature
-		smoothed_patch = T_amb + (T_max - T_amb) * gaussian
-		self.grid["temp"][start_y:end_y, start_x:end_x] = smoothed_patch
+		# sigma_y = 5*height / 2
+		# sigma_x = 5*width / 2
+		# y_range = np.arange(start_y, end_y)
+		# x_range = np.arange(start_x, end_x)
+		# Y, X = np.meshgrid(y_range, x_range, indexing="ij")
+		# gaussian = np.exp(-(((Y - center_y) ** 2) / (2 * sigma_y ** 2) + ((X - center_x) ** 2) / (2 * sigma_x ** 2)))
+		# T_max = self.temperature_max_initial_condition
+		# T_amb = self.params.ambiant_temperature
+		# smoothed_patch = T_amb + (T_max - T_amb) * gaussian
+		# self.grid["temp"][start_y:end_y, start_x:end_x] = smoothed_patch
 
 	def update_dispersion_grid(self):
 		"""
@@ -200,33 +200,33 @@ class Propagation:
 
 		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
 		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
-		#s_1 = np.exp(-r_1 * self.integration_step) * self.grid["s_1"]
+		# s_1 = np.exp(-r_1 * self.integration_step) * self.grid["s_1"]
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
 		#avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
 		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
-		r_m = 1e-2
+		r_m = 1e-3
 
 		#r_m = 6e-3
 		#r_m = 1*self.grid["temp"].max()
 
 		r_2t = (r_2 * r_m) / (r_2 + r_m)
 		s_2 = np.exp(-r_2t * self.misc["current_time"]) * (self.scalars["m_s_2_0"] / (self.params.alpha * self.params.rho_solid))
-		#s_2 = np.exp(-r_2t * self.integration_step) * self.grid["s_2"]
+		# s_2 = np.exp(-r_2t * self.integration_step) * self.grid["s_2"]
 
 		s = s_1 + s_2
 
-		if self.misc["current_time"] == 0.0:
-			self.grid["s_1"] = s_1
-			self.grid["s_2"] = s_2
-			self.grid["s"] = s
-		else:
-			self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
-			self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
-			self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
+		# if self.misc["current_time"] == 0.0:
+		# 	self.grid["s_1"] = s_1
+		# 	self.grid["s_2"] = s_2
+		# 	self.grid["s"] = s
+		# else:
+		# 	self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
+		# 	self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
+		# 	self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
 
-		#self.grid["s_1"] = s_1
-		#self.grid["s_2"] = s_2
-		#self.grid["s"] = s
+		self.grid["s_1"] = s_1
+		self.grid["s_2"] = s_2
+		self.grid["s"] = s
 
 		self.grid["r_1"] = r_1
 		self.grid["r_2t"] = r_2t
