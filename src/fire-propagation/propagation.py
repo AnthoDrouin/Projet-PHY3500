@@ -264,15 +264,27 @@ class Propagation:
 		self.setup()
 
 		prev_step = 0
+		prev_temperature = 0
 		for t in tqdm(self.time):
+			# AM
+			#if t == 0:
+			#	d_temp_over_d_time = self.d_temp_over_d_time()
+			#	current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
+			#	prev_step = d_temp_over_d_time
+			#else:
+			#	d_temp_over_d_time = self.d_temp_over_d_time()
+			#	current_temperature = self.grid["temp"] + (self.integration_step/2) * (3 * d_temp_over_d_time - prev_step)
+			#	prev_step = d_temp_over_d_time
+			# LEAPFROG
+
 			if t == 0:
 				d_temp_over_d_time = self.d_temp_over_d_time()
 				current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
-				prev_step = d_temp_over_d_time
+				prev_temperature = self.grid["temp"]
 			else:
 				d_temp_over_d_time = self.d_temp_over_d_time()
-				current_temperature = self.grid["temp"] + (self.integration_step/2) * (3 * d_temp_over_d_time - prev_step)
-				prev_step = d_temp_over_d_time
+				current_temperature = prev_temperature + 2 * self.integration_step * d_temp_over_d_time
+				prev_temperature = current_temperature
 
 			self.grid["temp"] = current_temperature
 			self.misc["current_time"] = t
