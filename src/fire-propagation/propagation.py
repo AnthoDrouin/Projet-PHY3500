@@ -16,7 +16,7 @@ class Propagation:
 			integration_step: float,
 			temperature_max_initial_condition: float = 1200,
 			position_max_temp_initial: Tuple[float, float] = (0, 0),
-			sigma: float = 20.0,
+			sigma: float = 5.0,
 			**kwargs: Dict[str, Any]
 	):
 		self.params = parameters
@@ -77,27 +77,27 @@ class Propagation:
 		"""
 		# Gaussian initial condition (any grid size)
 
-		#self.grid["temp"] = self.gaussian(
-		# 	x=self.x,
-		# 	y=self.y,
-		# 	x0=self.position_max_temp_initial[0],
-		# 	y0=self.position_max_temp_initial[1],
-		# 	sigma=self.sigma,
-		# 	temp_max=self.temperature_max_initial_condition,
-		# 	temp_amb=self.params.ambiant_temperature
-		#)
+		self.grid["temp"] = self.gaussian(
+			x=self.x,
+			y=self.y,
+			x0=self.position_max_temp_initial[0],
+			y0=self.position_max_temp_initial[1],
+			sigma=self.sigma,
+			temp_max=self.temperature_max_initial_condition,
+			temp_amb=self.params.ambiant_temperature
+		)
 
 		# Initial condition as a rectangle (GRID 200X200 ONLY!!!)
 
-		self.grid["temp"] = np.zeros(self.misc["dim_grid"]) + self.params.ambiant_temperature
-		height = 60
-		width = 10
-		center_y, center_x = 200, 100
-		start_y = center_y - height // 2
-		end_y = center_y + height // 2
-		start_x = center_x - width // 2
-		end_x = center_x + width // 2
-		self.grid["temp"][start_y:end_y, start_x:end_x] = self.temperature_max_initial_condition
+		# self.grid["temp"] = np.zeros(self.misc["dim_grid"]) + self.params.ambiant_temperature
+		# height = 30
+		# width = 10
+		# center_y, center_x = 200, 100
+		# start_y = center_y - height // 2
+		# end_y = center_y + height // 2
+		# start_x = center_x - width // 2
+		# end_x = center_x + width // 2
+		# self.grid["temp"][start_y:end_y, start_x:end_x] = self.temperature_max_initial_condition
 
 		# sigma_y = 5*height / 2
 		# sigma_x = 5*width / 2
@@ -199,34 +199,34 @@ class Propagation:
 		# Compute S, S1, S2
 
 		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
-		#s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
-		s_1 = np.exp(-r_1 * self.integration_step) * self.grid["s_1"]
+		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
+		# s_1 = np.exp(-r_1 * self.integration_step) * self.grid["s_1"]
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
 		#avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
 		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
-		r_m = 1.35e-3
+		r_m = 8e-4
 
 		#r_m = 6e-3
 		#r_m = 1*self.grid["temp"].max()
 
 		r_2t = (r_2 * r_m) / (r_2 + r_m)
-		#s_2 = np.exp(-r_2t * self.misc["current_time"]) * (self.scalars["m_s_2_0"] / (self.params.alpha * self.params.rho_solid))
-		s_2 = np.exp(-r_2t * self.integration_step) * self.grid["s_2"]
+		s_2 = np.exp(-r_2t * self.misc["current_time"]) * (self.scalars["m_s_2_0"] / (self.params.alpha * self.params.rho_solid))
+		# s_2 = np.exp(-r_2t * self.integration_step) * self.grid["s_2"]
 
 		s = s_1 + s_2
 
-		#if self.misc["current_time"] == 0.0:
-		#	self.grid["s_1"] = s_1
-		#	self.grid["s_2"] = s_2
-		#	self.grid["s"] = s
-		#else:
-		#	self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
-		#	self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
-		#	self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
+		if self.misc["current_time"] == 0.0:
+			self.grid["s_1"] = s_1
+			self.grid["s_2"] = s_2
+			self.grid["s"] = s
+		else:
+			self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
+			self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
+			self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
 
-		self.grid["s_1"] = s_1
-		self.grid["s_2"] = s_2
-		self.grid["s"] = s
+		# self.grid["s_1"] = s_1
+		# self.grid["s_2"] = s_2
+		# self.grid["s"] = s
 
 		self.grid["r_1"] = r_1
 		self.grid["r_2t"] = r_2t
