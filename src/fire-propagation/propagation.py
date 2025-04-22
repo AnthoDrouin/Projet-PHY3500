@@ -204,7 +204,7 @@ class Propagation:
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
 		#avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
 		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
-		r_m = 1e-3
+		r_m = 8e-4
 
 		#r_m = 6e-3
 		#r_m = 1*self.grid["temp"].max()
