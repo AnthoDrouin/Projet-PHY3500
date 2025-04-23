@@ -16,7 +16,7 @@ class Propagation:
 			integration_step: float,
 			temperature_max_initial_condition: float = 1200,
 			position_max_temp_initial: Tuple[float, float] = (0, 0),
-			sigma: float = 20.0,
+			sigma: float = 5.0,
 			**kwargs: Dict[str, Any]
 	):
 		self.params = parameters
@@ -77,27 +77,38 @@ class Propagation:
 		"""
 		# Gaussian initial condition (any grid size)
 
-		#self.grid["temp"] = self.gaussian(
-		#	x=self.x,
-		#	y=self.y,
-		#	x0=self.position_max_temp_initial[0],
-		#	y0=self.position_max_temp_initial[1],
-		#	sigma=self.sigma,
-		#	temp_max=self.temperature_max_initial_condition,
-		#	temp_amb=self.params.ambiant_temperature
-		#)
+		self.grid["temp"] = self.gaussian(
+			x=self.x,
+			y=self.y,
+			x0=self.position_max_temp_initial[0],
+			y0=self.position_max_temp_initial[1],
+			sigma=self.sigma,
+			temp_max=self.temperature_max_initial_condition,
+			temp_amb=self.params.ambiant_temperature
+		)
 
 		# Initial condition as a rectangle (GRID 200X200 ONLY!!!)
 
-		self.grid["temp"] = np.zeros(self.misc["dim_grid"]) + self.params.ambiant_temperature
-		height = 30
-		width = 10
-		center_y, center_x = 200, 200
-		start_y = center_y - height // 2
-		end_y = center_y + height // 2
-		start_x = center_x - width // 2
-		end_x = center_x + width // 2
-		self.grid["temp"][start_y:end_y, start_x:end_x] = self.temperature_max_initial_condition
+		# self.grid["temp"] = np.zeros(self.misc["dim_grid"]) + self.params.ambiant_temperature
+		# height = 30
+		# width = 10
+		# center_y, center_x = 200, 100
+		# start_y = center_y - height // 2
+		# end_y = center_y + height // 2
+		# start_x = center_x - width // 2
+		# end_x = center_x + width // 2
+		# self.grid["temp"][start_y:end_y, start_x:end_x] = self.temperature_max_initial_condition
+
+		# sigma_y = 5*height / 2
+		# sigma_x = 5*width / 2
+		# y_range = np.arange(start_y, end_y)
+		# x_range = np.arange(start_x, end_x)
+		# Y, X = np.meshgrid(y_range, x_range, indexing="ij")
+		# gaussian = np.exp(-(((Y - center_y) ** 2) / (2 * sigma_y ** 2) + ((X - center_x) ** 2) / (2 * sigma_x ** 2)))
+		# T_max = self.temperature_max_initial_condition
+		# T_amb = self.params.ambiant_temperature
+		# smoothed_patch = T_amb + (T_max - T_amb) * gaussian
+		# self.grid["temp"][start_y:end_y, start_x:end_x] = smoothed_patch
 
 	def update_dispersion_grid(self):
 		"""
@@ -145,9 +156,7 @@ class Propagation:
 		l_x = np.abs(x_max_temp - x_threshold_temp)
 		l_y = np.abs(y_max_temp - y_threshold_temp)
 
-
 		return l_x, l_y
-
 
 	def update_advection_grid(self):
 		"""
@@ -157,8 +166,12 @@ class Propagation:
 		# I don't want/know how to implement I_B especially the rate of spread ROS
 
 		x_c = self.grid["s_2"] / self.scalars["s_2_0"]
-		self.grid["<u_x>"] = self.params.avg_canopy_velocity[0] + (self.params.avg_velocity_bare_ground[0] - self.params.avg_canopy_velocity[0]) * (1 - x_c)  # Eq20 with S_2 = S_2_0 -> x_c = 1
-		self.grid["<u_y>"] = self.params.avg_canopy_velocity[1] + (self.params.avg_velocity_bare_ground[1] - self.params.avg_canopy_velocity[1]) * (1 - x_c)  # Eq20 with S_2 = S_2_0 -> x_c = 1
+		self.grid["<u_x>"] = self.params.avg_canopy_velocity[0] + (
+					self.params.avg_velocity_bare_ground[0] - self.params.avg_canopy_velocity[0]) * (
+					                     1 - x_c)  # Eq20 with S_2 = S_2_0 -> x_c = 1
+		self.grid["<u_y>"] = self.params.avg_canopy_velocity[1] + (
+					self.params.avg_velocity_bare_ground[1] - self.params.avg_canopy_velocity[1]) * (
+					                     1 - x_c)  # Eq20 with S_2 = S_2_0 -> x_c = 1
 		self.grid["<u_effx>"] = np.sqrt(
 			(self.grid["<u_x>"] * np.sin(self.params.psi)) ** 2 + (self.grid["<u_x>"] * np.cos(self.params.psi)) ** 2)
 		self.grid["<u_effy>"] = np.sqrt(
@@ -175,6 +188,9 @@ class Propagation:
 
 		self.scalars["s_2_0"] = self.scalars["m_s_2_0"] / self.scalars["m_s_0"]
 
+		self.grid["s_1"] = np.ones(self.misc["dim_grid"]) * (self.scalars["m_s_1_0"] / self.scalars["m_s_0"])
+		self.grid["s_2"] = np.ones(self.misc["dim_grid"]) * (self.scalars["m_s_2_0"] / self.scalars["m_s_0"])
+
 	def update_reaction_grid(self):
 		"""
 		Initial conditions for the reaction grid. This implies the computation of the following parameters:
@@ -184,26 +200,40 @@ class Propagation:
 
 		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
 		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
-
+		# s_1 = np.exp(-r_1 * self.integration_step) * self.grid["s_1"]
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
-		avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
+		#avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
 		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
-		r_m = 1e-3
+		r_m = 8e-4
+
+		#r_m = 6e-3
+		#r_m = 1*self.grid["temp"].max()
+
 		r_2t = (r_2 * r_m) / (r_2 + r_m)
-		s_2 = np.exp(-r_2t * self.misc["current_time"]) * (
-					self.scalars["m_s_2_0"] / (self.params.alpha * self.params.rho_solid))
+		s_2 = np.exp(-r_2t * self.misc["current_time"]) * (self.scalars["m_s_2_0"] / (self.params.alpha * self.params.rho_solid))
+		# s_2 = np.exp(-r_2t * self.integration_step) * self.grid["s_2"]
 
 		s = s_1 + s_2
 
-		self.grid["s_1"] = s_1
-		self.grid["s_2"] = s_2
-		self.grid["s"] = s
+		if self.misc["current_time"] == 0.0:
+			self.grid["s_1"] = s_1
+			self.grid["s_2"] = s_2
+			self.grid["s"] = s
+		else:
+			self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
+			self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
+			self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
+
+		# self.grid["s_1"] = s_1
+		# self.grid["s_2"] = s_2
+		# self.grid["s"] = s
 
 		self.grid["r_1"] = r_1
 		self.grid["r_2t"] = r_2t
 		# Compute c0, c1
 
-		c0 = self.params.alpha * s + ((1 - self.params.alpha) * self.params.lambda_ * self.params.gamma) + (self.params.alpha * self.params.gamma * (1 - s))
+		c0 = self.params.alpha * s + ((1 - self.params.alpha) * self.params.lambda_ * self.params.gamma) + (
+					self.params.alpha * self.params.gamma * (1 - s))
 		c1 = c0 - self.params.alpha * s
 
 		self.grid["c_0"] = c0
@@ -233,12 +263,39 @@ class Propagation:
 	def run(self):
 		self.setup()
 
-		for t in tqdm(self.time):
-			current_temperature = self.grid["temp"].copy() + self.integration_step * self.d_temp_over_d_time()
+		prev_step = 0
+		prev_temperature = 0
+		pbr = tqdm(self.time)
+		for t in pbr:
+			# AM
+			#if t == 0:
+			#	d_temp_over_d_time = self.d_temp_over_d_time()
+			#	current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
+			#	prev_step = d_temp_over_d_time
+			#else:
+			#	d_temp_over_d_time = self.d_temp_over_d_time()
+			#	current_temperature = self.grid["temp"] + (self.integration_step/2) * (3 * d_temp_over_d_time - prev_step)
+			#	prev_step = d_temp_over_d_time
+			# LEAPFROG
+
+			if t == 0:
+				d_temp_over_d_time = self.d_temp_over_d_time()
+				current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
+				prev_temperature = self.grid["temp"]
+				pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
+			else:
+				d_temp_over_d_time = self.d_temp_over_d_time()
+				current_temperature = prev_temperature + 2 * self.integration_step * d_temp_over_d_time
+				prev_temperature = current_temperature
+
 			self.grid["temp"] = current_temperature
 			self.misc["current_time"] = t
+			pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
+			if current_temperature.max() < 575:
+				break
 
 			self.update()
+
 
 	def d_temp_over_d_time(self):
 		"""
@@ -322,8 +379,14 @@ class Propagation:
 		max_temp_x_550 = max_temp_x[np.where(max_temp > 550)]
 		max_temp_y_550 = max_temp_y[np.where(max_temp > 550)]
 
-		w_x = np.max(max_temp_x_550) - np.min(max_temp_x_550)
-		w_y = np.max(max_temp_y_550) - np.min(max_temp_y_550)
+		max_temp_pts = np.array([max_temp_x_550, max_temp_y_550])
+		distances = np.linalg.norm(max_temp_pts[:, :, None] - max_temp_pts[:, None, :], axis=0)
+		max_distance_idx = np.unravel_index(np.argmax(distances), distances.shape)
+		max_temp_pt1 = max_temp_pts[:, max_distance_idx[0]]
+		max_temp_pt2 = max_temp_pts[:, max_distance_idx[1]]
+
+		w_x = np.abs(max_temp_pt1[0] - max_temp_pt2[0])
+		w_y = np.abs(max_temp_pt1[1] - max_temp_pt2[1])
 
 		return w_x, w_y
 
