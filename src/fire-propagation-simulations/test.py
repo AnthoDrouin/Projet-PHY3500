@@ -6,11 +6,11 @@ from matplotlib.colors import LinearSegmentedColormap
 
 
 
-parameters = Parameters(u10=[3,0], z0=0.5, delta=0.08)
+parameters = Parameters(u10=[3/np.sqrt(2), 3/np.sqrt(2)], z0=0.5, delta=0.08)
 grid_size = (200, 200)
 spacing = (0.5, 0.5)
-integration_time = 500
-integration_step = .1
+integration_time = 400
+integration_step = 0.1
 
 propagation = Propagation(
 	parameters,
@@ -18,7 +18,7 @@ propagation = Propagation(
 	spacing,
 	integration_time,
 	integration_step,
-	position_max_temp_initial=(-75, 0)
+	position_max_temp_initial=(-50, 0)
 )
 
 temp_matrix = propagation.grid["s"]
@@ -27,11 +27,10 @@ temp_matrix = propagation.grid["s"]
 
 x = propagation.x
 y = propagation.y
-
-plt.imshow(temp_matrix, extent=(x.min(), x.max(), y.min(), y.max()), origin='lower', cmap="inferno", vmin=0, vmax=1)
+black_to_green = LinearSegmentedColormap.from_list("black_to_green", ["black", "green"])
+plt.imshow(temp_matrix, extent=(x.min(), x.max(), y.min(), y.max()), origin='lower', cmap=black_to_green, vmin=0, vmax=1)
 plt.colorbar()
 plt.show()
-
 
 
 # temp_matrix = propagation.grid["temp"]

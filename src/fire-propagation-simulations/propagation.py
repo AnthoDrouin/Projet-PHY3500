@@ -14,7 +14,7 @@ class Propagation:
 			spacing: Tuple[float, float],
 			integration_time: float,
 			integration_step: float,
-			temperature_max_initial_condition: float = 800,
+			temperature_max_initial_condition: float = 1200,
 			position_max_temp_initial: Tuple[float, float] = (0, 0),
 			sigma: float = 5.0,
 			**kwargs: Dict[str, Any]
@@ -204,7 +204,7 @@ class Propagation:
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
 		#avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
 		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
-		r_m = 9.65e-4
+		r_m = 8e-4
 
 		#r_m = 6e-3
 		#r_m = 1*self.grid["temp"].max()
@@ -287,24 +287,10 @@ class Propagation:
 				d_temp_over_d_time = self.d_temp_over_d_time()
 				current_temperature = prev_temperature + 2 * self.integration_step * d_temp_over_d_time
 				prev_temperature = current_temperature
-			
 
 			self.grid["temp"] = current_temperature
 			self.misc["current_time"] = t
 			pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
-			if np.isclose(t, 0.25 * self.integration_time, atol=0.05) or np.isclose(t, 0.5 * self.integration_time, atol=0.05) or np.isclose(t, 0.75 * self.integration_time, atol=0.05) or np.isclose(t, self.integration_time, atol=0.05):
-				grid_matrix = self.grid["s"]
-				x = self.x
-				y = self.y
-				plt.imshow(grid_matrix, extent=(x.min(), x.max(), y.min(), y.max()), origin='lower', cmap="inferno", vmin=0, vmax=1)
-				plt.colorbar()
-				plt.title(f"Time: {self.misc['current_time']:.2f} s")
-				plt.xlabel("X (m)")
-				plt.ylabel("Y (m)")
-				plt.xlim(x.min(), x.max())
-				plt.ylim(y.min(), y.max())	
-				plt.savefig(f"src/fire-propagation-simulations/figures/propagation_{self.misc['current_time']:.2f}.png")
-				plt.show()
 			if current_temperature.max() < 575:
 				break
 
