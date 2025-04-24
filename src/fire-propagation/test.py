@@ -4,12 +4,20 @@ from parameters import Parameters
 from propagation import Propagation
 from matplotlib.colors import LinearSegmentedColormap
 
+data = np.load("RK4_temp_max_temp_grid_time_exec_time_u10_3_rm_9_65_001_01.npy", allow_pickle=True).item()
+data_rk2 = np.load("RK2_temp_max_temp_grid_time_exec_time_u10_3_rm_9_65_001_01.npy", allow_pickle=True).item()
+
+plt.plot(data["time"], data["temp_max"])
+plt.plot(data_rk2["time"], data_rk2["temp_max"])
+plt.legend(["RK4", "RK2"])
+plt.show()
 
 
+exit()
 parameters = Parameters(u10=[3/np.sqrt(2), 3/np.sqrt(2)], z0=0.5, delta=0.08)
 grid_size = (200, 200)
 spacing = (0.5, 0.5)
-integration_time = 500
+integration_time = 400
 integration_step = 0.1
 
 propagation = Propagation(
