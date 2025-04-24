@@ -17,6 +17,7 @@ class Propagation:
 			temperature_max_initial_condition: float = 800,
 			position_max_temp_initial: Tuple[float, float] = (0, 0),
 			sigma: float = 5.0,
+			save_path: str = None,
 			**kwargs: Dict[str, Any]
 	):
 		self.params = parameters
@@ -28,6 +29,8 @@ class Propagation:
 		self.temperature_max_initial_condition = temperature_max_initial_condition
 		self.position_max_temp_initial = position_max_temp_initial
 		self.sigma = sigma
+
+		self.save_path = save_path
 
 		self.check_params()
 
@@ -202,9 +205,10 @@ class Propagation:
 		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
 		# s_1 = np.exp(-r_1 * self.integration_step) * self.grid["s_1"]
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
-		#avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
-		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
-		r_m = 9.65e-4
+		# avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
+		# r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
+		r_m = 9.65e-4	# for u3 u5
+		# r_m = 8e-4
 
 		#r_m = 6e-3
 		#r_m = 1*self.grid["temp"].max()
@@ -268,25 +272,26 @@ class Propagation:
 		pbr = tqdm(self.time)
 		for t in pbr:
 			# AM
-			#if t == 0:
-			#	d_temp_over_d_time = self.d_temp_over_d_time()
-			#	current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
-			#	prev_step = d_temp_over_d_time
-			#else:
-			#	d_temp_over_d_time = self.d_temp_over_d_time()
-			#	current_temperature = self.grid["temp"] + (self.integration_step/2) * (3 * d_temp_over_d_time - prev_step)
-			#	prev_step = d_temp_over_d_time
-			# LEAPFROG
-
 			if t == 0:
 				d_temp_over_d_time = self.d_temp_over_d_time()
 				current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
-				prev_temperature = self.grid["temp"]
+				prev_step = d_temp_over_d_time
 				pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
 			else:
 				d_temp_over_d_time = self.d_temp_over_d_time()
-				current_temperature = prev_temperature + 2 * self.integration_step * d_temp_over_d_time
-				prev_temperature = current_temperature
+				current_temperature = self.grid["temp"] + (self.integration_step/2) * (3 * d_temp_over_d_time - prev_step)
+				prev_step = d_temp_over_d_time
+			# LEAPFROG
+
+			# if t == 0:
+			# 	d_temp_over_d_time = self.d_temp_over_d_time()
+			# 	current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
+			# 	prev_temperature = self.grid["temp"]
+			# 	pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
+			# else:
+			# 	d_temp_over_d_time = self.d_temp_over_d_time()
+			# 	current_temperature = prev_temperature + 2 * self.integration_step * d_temp_over_d_time
+			# 	prev_temperature = current_temperature
 			
 
 			self.grid["temp"] = current_temperature
@@ -302,8 +307,9 @@ class Propagation:
 				plt.xlabel("X (m)")
 				plt.ylabel("Y (m)")
 				plt.xlim(x.min(), x.max())
-				plt.ylim(y.min(), y.max())	
-				plt.savefig(f"src/fire-propagation-simulations/figures/propagation_{self.misc['current_time']:.2f}.png")
+				plt.ylim(y.min(), y.max())
+				if self.save_path is not None:
+					plt.savefig(f"{self.save_path}/propagation_{self.misc['current_time']:.2f}.png")
 				plt.show()
 			if current_temperature.max() < 575:
 				break
