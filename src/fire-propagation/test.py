@@ -6,11 +6,11 @@ from matplotlib.colors import LinearSegmentedColormap
 
 
 
-parameters = Parameters(u10=[5,0], z0=0.25, delta=0.04)
+parameters = Parameters(u10=[7,0], z0=0.5, delta=0.08)
 grid_size = (200, 200)
 spacing = (0.5, 0.5)
 integration_time = 500
-integration_step = .1
+integration_step = .2
 
 propagation = Propagation(
 	parameters,
@@ -21,7 +21,7 @@ propagation = Propagation(
 	position_max_temp_initial=(-90, 0),
 	temperature_max_initial_condition=800,
 	sigma=10,
-	save_path="src\\fire-propagation\\figures\\ux5_z25_d4_Ti800"
+	save_path="src\\fire-propagation\\figures\\gif"
 )
 
 temp_matrix = propagation.grid["s_1"]
@@ -47,9 +47,9 @@ plt.imshow(temp_matrix, extent=(x.min(), x.max(), y.min(), y.max()), origin='low
 plt.colorbar()
 plt.show()
 
-#temp_matrix = temp_matrix[500, :]
+# temp_matrix = temp_matrix[500, :]
 
-#print(temp_matrix.shape)
+# print(temp_matrix.shape)
 
-#plt.plot(x[500, :], temp_matrix)
-#plt.show()
+# plt.plot(x[500, :], temp_matrix)
+# plt.show()

@@ -3,6 +3,8 @@ from typing import List, Tuple, Dict, Any
 from parameters import Parameters
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import matplotlib.animation as animation
+
 
 
 class Propagation:
@@ -191,8 +193,17 @@ class Propagation:
 
 		self.scalars["s_2_0"] = self.scalars["m_s_2_0"] / self.scalars["m_s_0"]
 
-		self.grid["s_1"] = np.ones(self.misc["dim_grid"]) * (self.scalars["m_s_1_0"] / self.scalars["m_s_0"])
-		self.grid["s_2"] = np.ones(self.misc["dim_grid"]) * (self.scalars["m_s_2_0"] / self.scalars["m_s_0"])
+		self.grid["s_1_0"] = np.ones(self.misc["dim_grid"]) * (self.scalars["m_s_1_0"] / self.scalars["m_s_0"])
+		self.grid["s_2_0"] = np.ones(self.misc["dim_grid"]) * (self.scalars["m_s_2_0"] / self.scalars["m_s_0"])
+		# Set s1 and s2 to 0 in a section of width 20 centered at x=0
+		center_x = 0
+		width = 40
+		x_min = center_x - width / 2
+		x_max = center_x + width / 2
+
+		mask = (self.x >= x_min) & (self.x <= x_max)
+		# self.grid["s_2_0"][mask] = 0.2
+		# self.grid["s_1_0"][mask] = 0.4
 
 	def update_reaction_grid(self):
 		"""
@@ -202,7 +213,7 @@ class Propagation:
 		# Compute S, S1, S2
 
 		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
-		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
+		s_1 = np.exp(-r_1 * self.misc["current_time"]) * self.grid["s_1_0"]
 		# s_1 = np.exp(-r_1 * self.integration_step) * self.grid["s_1"]
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
 		# avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
@@ -214,20 +225,26 @@ class Propagation:
 		#r_m = 1*self.grid["temp"].max()
 
 		r_2t = (r_2 * r_m) / (r_2 + r_m)
-		s_2 = np.exp(-r_2t * self.misc["current_time"]) * (self.scalars["m_s_2_0"] / (self.params.alpha * self.params.rho_solid))
+		s_2 = np.exp(-r_2t * self.misc["current_time"]) * self.grid["s_2_0"]
 		# s_2 = np.exp(-r_2t * self.integration_step) * self.grid["s_2"]
+		# center_x = 0
+		# width = 20
+		# x_min = center_x - width / 2
+		# x_max = center_x + width / 2
 
-		s = s_1 + s_2
+		# mask = (self.x >= x_min) & (self.x <= x_max)
+		# s_2[mask] = 0
+		# s_1[mask] = 0
+		# s = s_1 + s_2
 
 		if self.misc["current_time"] == 0.0:
 			self.grid["s_1"] = s_1
 			self.grid["s_2"] = s_2
-			self.grid["s"] = s
+			self.grid["s"] = s_1 + s_2
 		else:
 			self.grid["s_1"] = np.minimum(self.grid["s_1"], s_1)
 			self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
 			self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
-
 		# self.grid["s_1"] = s_1
 		# self.grid["s_2"] = s_2
 		# self.grid["s"] = s
@@ -236,9 +253,9 @@ class Propagation:
 		self.grid["r_2t"] = r_2t
 		# Compute c0, c1
 
-		c0 = self.params.alpha * s + ((1 - self.params.alpha) * self.params.lambda_ * self.params.gamma) + (
-					self.params.alpha * self.params.gamma * (1 - s))
-		c1 = c0 - self.params.alpha * s
+		c0 = self.params.alpha * self.grid["s"] + ((1 - self.params.alpha) * self.params.lambda_ * self.params.gamma) + (
+					self.params.alpha * self.params.gamma * (1 - self.grid["s"]))
+		c1 = c0 - self.params.alpha * self.grid["s"]
 
 		self.grid["c_0"] = c0
 		self.grid["c_1"] = c1
@@ -266,7 +283,8 @@ class Propagation:
 
 	def run(self):
 		self.setup()
-
+		fig, ax = plt.subplots()
+		frames = []
 		prev_step = 0
 		prev_temperature = 0
 		pbr = tqdm(self.time)
@@ -297,24 +315,36 @@ class Propagation:
 			self.grid["temp"] = current_temperature
 			self.misc["current_time"] = t
 			pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
-			if np.isclose(t, 0.25 * self.integration_time, atol=0.05) or np.isclose(t, 0.5 * self.integration_time, atol=0.05) or np.isclose(t, 0.75 * self.integration_time, atol=0.05) or np.isclose(t, self.integration_time, atol=0.05):
-				grid_matrix = self.grid["s"]
-				x = self.x
-				y = self.y
-				plt.imshow(grid_matrix, extent=(x.min(), x.max(), y.min(), y.max()), origin='lower', cmap="inferno", vmin=0, vmax=1)
-				plt.colorbar()
-				plt.title(f"Time: {self.misc['current_time']:.2f} s")
-				plt.xlabel("X (m)")
-				plt.ylabel("Y (m)")
-				plt.xlim(x.min(), x.max())
-				plt.ylim(y.min(), y.max())
-				if self.save_path is not None:
-					plt.savefig(f"{self.save_path}/propagation_{self.misc['current_time']:.2f}.png")
-				plt.show()
+			grid_matrix = self.grid["s"]
+			im = ax.imshow(grid_matrix, extent=(self.x.min(), self.x.max(), self.y.min(), self.y.max()),
+							origin='lower', cmap="inferno", vmin=0, vmax=1)
+			title = ax.text(0.5, 1.05, f"Time: {self.misc['current_time']:.2f} s", 
+							size=plt.rcParams["axes.titlesize"], ha="center", transform=ax.transAxes)
+			ax.set_xlabel("X (m)")
+			ax.set_ylabel("Y (m)")
+			frames.append([im, title])
+			# if np.isclose(t, 0.25 * self.integration_time, atol=0.05) or np.isclose(t, 0.5 * self.integration_time, atol=0.05) or np.isclose(t, 0.75 * self.integration_time, atol=0.05) or np.isclose(t, self.integration_time, atol=0.05):
+			# 	grid_matrix = self.grid["s"]
+			# 	x = self.x
+			# 	y = self.y
+			# 	plt.imshow(grid_matrix, extent=(x.min(), x.max(), y.min(), y.max()), origin='lower', cmap="inferno", vmin=0, vmax=1)
+			# 	plt.colorbar()
+			# 	plt.title(f"Time: {self.misc['current_time']:.2f} s")
+			# 	plt.xlabel("X (m)")
+			# 	plt.ylabel("Y (m)")
+			# 	plt.xlim(x.min(), x.max())
+			# 	plt.ylim(y.min(), y.max())
+			# 	if self.save_path is not None:
+			# 		plt.savefig(f"{self.save_path}/propagation_{self.misc['current_time']:.2f}.png")
+			# 	plt.show()
 			if current_temperature.max() < 575:
 				break
 
 			self.update()
+		print("Doing animation")
+		ani = animation.ArtistAnimation(fig, frames, interval=1, blit=True, repeat_delay=0)
+		ani.save(f"{self.save_path}/evolution_s.gif", writer="pillow")
+		plt.close(fig)
 
 
 	def d_temp_over_d_time(self):
