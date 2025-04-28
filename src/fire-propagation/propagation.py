@@ -261,19 +261,19 @@ class Propagation:
 		pbr = tqdm(self.time)
 		for idx, t in enumerate(pbr):
 
-			self.results["temp_grid"][:, :, idx] = self.grid["temp"]
-			self.results["temp_max"][idx] = np.max(self.grid["temp"])
+			#self.results["temp_grid"][:, :, idx] = self.grid["temp"]
+			#self.results["temp_max"][idx] = np.max(self.grid["temp"])
 
 			### AM ###
 
-			#if t == 0:
-			#	d_temp_over_d_time = self.d_temp_over_d_time()
-			#	current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
-			#	prev_step = d_temp_over_d_time
-			#else:
-			#	d_temp_over_d_time = self.d_temp_over_d_time()
-			#	current_temperature = self.grid["temp"] + (self.integration_step/2) * (3 * d_temp_over_d_time - prev_step)
-			#	prev_step = d_temp_over_d_time
+			if t == 0:
+				d_temp_over_d_time = self.d_temp_over_d_time()
+				current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
+				prev_step = d_temp_over_d_time
+			else:
+				d_temp_over_d_time = self.d_temp_over_d_time()
+				current_temperature = self.grid["temp"] + (self.integration_step/2) * (3 * d_temp_over_d_time - prev_step)
+				prev_step = d_temp_over_d_time
 
 			# LEAPFROG
 
@@ -293,25 +293,25 @@ class Propagation:
 
 			# Runge-Kutta 2th order
 
-			k1 = self.d_temp_over_d_time()
-			prev_temperature = self.grid["temp"]
-			prev_time = self.misc["current_time"]
-			self.grid["temp"] = self.grid["temp"] + self.integration_step * k1
-			self.misc["current_time"] = t + self.integration_step
-			self.update()
-			k2 = self.d_temp_over_d_time()
+			#k1 = self.d_temp_over_d_time()
+			#prev_temperature = self.grid["temp"]
+			#prev_time = self.misc["current_time"]
+			#self.grid["temp"] = self.grid["temp"] + self.integration_step * k1
+			#self.misc["current_time"] = t + self.integration_step
+			#self.update()
+			#k2 = self.d_temp_over_d_time()
 			# RK4 #
-			self.grid["temp"] = prev_temperature + (self.integration_step / 2) * k2
-			self.grid["current_time"] = t + (self.integration_step / 2)
-			self.update()
-			k3 = self.d_temp_over_d_time()
-			self.grid["temp"] = prev_temperature + self.integration_step * k3
-			self.grid["current_time"] = t + self.integration_step
-			self.update()
-			k4 = self.d_temp_over_d_time()
+			#self.grid["temp"] = prev_temperature + (self.integration_step / 2) * k2
+			#self.grid["current_time"] = t + (self.integration_step / 2)
+			#self.update()
+			#k3 = self.d_temp_over_d_time()
+			#self.grid["temp"] = prev_temperature + self.integration_step * k3
+			#self.grid["current_time"] = t + self.integration_step
+			#self.update()
+			#k4 = self.d_temp_over_d_time()
 
 			#current_temperature = prev_temperature + (self.integration_step / 2) * (k1 + k2)  #RK2
-			current_temperature = prev_temperature + (self.integration_step / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+			#current_temperature = prev_temperature + (self.integration_step / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
 			self.grid["temp"] = current_temperature
 			self.misc["current_time"] = t
@@ -361,7 +361,7 @@ class Propagation:
 		self.results["time"] = self.time
 		end_time = time.time()
 		self.results["execution_time"] = end_time - self.start_time
-		np.save("RK4_temp_max_temp_grid_time_exec_time_u10_3_rm_9_65_001_01.npy", self.results, allow_pickle=True)
+		np.save("data.npy", self.results, allow_pickle=True)
 
 	@staticmethod
 	def gaussian(x: float, y: float, x0: float, y0: float, sigma: float, temp_max: float, temp_amb) -> float:
