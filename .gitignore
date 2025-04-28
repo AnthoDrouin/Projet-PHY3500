@@ -1,3 +1,7 @@
 .idea
 .pyc
 .npy
+src/fire-propagation/Euler_temp_max_temp_grid_time_exec_time_u10_3_rm_9_65_001_05.npy
+src/fire-propagation/AM_temp_max_temp_grid_time_exec_time_u10_3_rm_9_65_01.npy
+*.npy
+src/fire-propagation/Euler_temp_max_temp_grid_time_exec_time_u10_3_rm_9_65_01.npy
