@@ -3,6 +3,7 @@ from typing import List, Tuple, Dict, Any
 from parameters import Parameters
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import time
 
 
 class Propagation:
@@ -19,6 +20,7 @@ class Propagation:
 			sigma: float = 5.0,
 			**kwargs: Dict[str, Any]
 	):
+		self.start_time = time.time()
 		self.params = parameters
 		self.grid_size = grid_size
 		self.spacing = spacing
@@ -40,6 +42,8 @@ class Propagation:
 		self.misc = {
 			"current_time": 0,
 		}
+
+		self.results = {}
 
 		self.run()
 
@@ -70,6 +74,8 @@ class Propagation:
 
 		dim_grid = (n, n)
 		self.misc["dim_grid"] = dim_grid
+
+		self.results["temp_grid"] = np.zeros((n, n, self.num_time_step))
 
 	def initial_condition_temp_grid(self):
 		"""
@@ -115,16 +121,7 @@ class Propagation:
 		Initial conditions for Deffx and Deffy
 		"""
 		l_x, l_y = self.width_burning_zone
-		#threshold = 0.1 * np.max(self.grid["temp"]) + self.params.ambiant_temperature
-		#idx_closest = np.unravel_index(np.argmin(np.abs(self.grid["temp"] - threshold)), self.grid["temp"].shape)
-		# TODO: The computation of l_x and l_y might needs to be complexified
-		# TODO: MODIFICATION HERE -> ADD ABSOLUTE VALUE
-		#l_x = np.abs(self.x[idx_closest[0], idx_closest[1]])
-		#l_y = np.abs(self.y[idx_closest[0], idx_closest[1]])
-		#if self.misc["current_time"] == 0.0:
-		#	norm_l = np.sqrt(l_x ** 2 + l_y ** 2)
-		#	l_x = norm_l / np.sqrt(2)
-		#	l_y = norm_l / np.sqrt(2)
+
 		# Initially a gaussian, so it is expected that L_x = L_y
 
 		w_x, w_y = self.fire_width
@@ -144,8 +141,7 @@ class Propagation:
 	def width_burning_zone(self):
 		threshold = 0.1 * np.max(self.grid["temp"]) + self.params.ambiant_temperature
 		idx_threshold_temp = np.unravel_index(np.argmin(np.abs(self.grid["temp"] - threshold)), self.grid["temp"].shape)
-		#test = np.abs(self.grid["temp"] - threshold)
-		#idx_threshold_temp = np.unravel_index(np.where(np.abs(self.grid["temp"] - threshold) < tol), self.grid["temp"].shape)
+
 		x_threshold_temp = self.x[idx_threshold_temp]
 		y_threshold_temp = self.y[idx_threshold_temp]
 
@@ -162,8 +158,6 @@ class Propagation:
 		"""
 		Initial condition for <u_effx>, <u_effy>
 		"""
-		# TODO: IMPLEMENT u_buoy -> FOR NOW THETA=0 (else u_buoy needs to be computed...)
-		# I don't want/know how to implement I_B especially the rate of spread ROS
 
 		x_c = self.grid["s_2"] / self.scalars["s_2_0"]
 		self.grid["<u_x>"] = self.params.avg_canopy_velocity[0] + (
@@ -200,18 +194,15 @@ class Propagation:
 
 		r_1 = self.params.cs1 * np.exp(-self.params.b1 / self.grid["temp"])
 		s_1 = np.exp(-r_1 * self.misc["current_time"]) * (self.scalars["m_s_1_0"] / (self.params.alpha * self.params.rho_solid))
-		# s_1 = np.exp(-r_1 * self.integration_step) * self.grid["s_1"]
+		#s_1 = np.exp(-r_1 * self.integration_step) * self.grid["s_1"]
 		r_2 = self.params.cs2 * np.exp(-self.params.b2 / self.grid["temp"])
 		#avg_velocity_through_canopy = np.sqrt((self.params.avg_canopy_velocity[0] ** 2) + (self.params.avg_canopy_velocity[1] ** 2))
 		#r_m = self.params.r_m_0 + (self.params.r_m_c * (avg_velocity_through_canopy - 1))
-		r_m = 8e-4
-
-		#r_m = 6e-3
-		#r_m = 1*self.grid["temp"].max()
+		r_m = 9.65e-4
 
 		r_2t = (r_2 * r_m) / (r_2 + r_m)
 		s_2 = np.exp(-r_2t * self.misc["current_time"]) * (self.scalars["m_s_2_0"] / (self.params.alpha * self.params.rho_solid))
-		# s_2 = np.exp(-r_2t * self.integration_step) * self.grid["s_2"]
+		#s_2 = np.exp(-r_2t * self.integration_step) * self.grid["s_2"]
 
 		s = s_1 + s_2
 
@@ -224,9 +215,9 @@ class Propagation:
 			self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
 			self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
 
-		# self.grid["s_1"] = s_1
-		# self.grid["s_2"] = s_2
-		# self.grid["s"] = s
+		#self.grid["s_1"] = s_1
+		#self.grid["s_2"] = s_2
+		#self.grid["s"] = s
 
 		self.grid["r_1"] = r_1
 		self.grid["r_2t"] = r_2t
@@ -260,14 +251,21 @@ class Propagation:
 		self.initial_conditions_reaction_grid()
 		self.update()
 
+		self.results["temp_max"] = np.zeros(self.num_time_step)
+
 	def run(self):
 		self.setup()
 
 		prev_step = 0
 		prev_temperature = 0
 		pbr = tqdm(self.time)
-		for t in pbr:
-			# AM
+		for idx, t in enumerate(pbr):
+
+			self.results["temp_grid"][:, :, idx] = self.grid["temp"]
+			self.results["temp_max"][idx] = np.max(self.grid["temp"])
+
+			### AM ###
+
 			#if t == 0:
 			#	d_temp_over_d_time = self.d_temp_over_d_time()
 			#	current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
@@ -276,26 +274,58 @@ class Propagation:
 			#	d_temp_over_d_time = self.d_temp_over_d_time()
 			#	current_temperature = self.grid["temp"] + (self.integration_step/2) * (3 * d_temp_over_d_time - prev_step)
 			#	prev_step = d_temp_over_d_time
+
 			# LEAPFROG
 
-			if t == 0:
-				d_temp_over_d_time = self.d_temp_over_d_time()
-				current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
-				prev_temperature = self.grid["temp"]
-				pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
-			else:
-				d_temp_over_d_time = self.d_temp_over_d_time()
-				current_temperature = prev_temperature + 2 * self.integration_step * d_temp_over_d_time
-				prev_temperature = current_temperature
+			#if t == 0:
+			#	d_temp_over_d_time = self.d_temp_over_d_time()
+			#	current_temperature = self.grid["temp"] + self.integration_step * d_temp_over_d_time
+			#	prev_temperature = self.grid["temp"]
+			#	pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
+			#else:
+			#	d_temp_over_d_time = self.d_temp_over_d_time()
+			#	current_temperature = prev_temperature + 2 * self.integration_step * d_temp_over_d_time
+			#	prev_temperature = self.grid["temp"]
+
+			# EULER
+
+			#current_temperature = self.grid["temp"] + self.integration_step * self.d_temp_over_d_time()
+
+			# Runge-Kutta 2th order
+
+			k1 = self.d_temp_over_d_time()
+			prev_temperature = self.grid["temp"]
+			prev_time = self.misc["current_time"]
+			self.grid["temp"] = self.grid["temp"] + self.integration_step * k1
+			self.misc["current_time"] = t + self.integration_step
+			self.update()
+			k2 = self.d_temp_over_d_time()
+			# RK4 #
+			self.grid["temp"] = prev_temperature + (self.integration_step / 2) * k2
+			self.grid["current_time"] = t + (self.integration_step / 2)
+			self.update()
+			k3 = self.d_temp_over_d_time()
+			self.grid["temp"] = prev_temperature + self.integration_step * k3
+			self.grid["current_time"] = t + self.integration_step
+			self.update()
+			k4 = self.d_temp_over_d_time()
+
+			#current_temperature = prev_temperature + (self.integration_step / 2) * (k1 + k2)  #RK2
+			current_temperature = prev_temperature + (self.integration_step / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
 
 			self.grid["temp"] = current_temperature
 			self.misc["current_time"] = t
 			pbr.set_postfix({"max_temp": int(self.grid["temp"].max())})
-			if current_temperature.max() < 575:
+			if current_temperature.max() < 575 or current_temperature.max() > 5000:
 				break
 
 			self.update()
 
+		self.save_results()
+
+
+	def integrate_am(self):
+		pass
 
 	def d_temp_over_d_time(self):
 		"""
@@ -327,8 +357,11 @@ class Propagation:
 		self.update_convection()
 		self.border_conditions()
 
-	def get_results(self):
-		pass
+	def save_results(self):
+		self.results["time"] = self.time
+		end_time = time.time()
+		self.results["execution_time"] = end_time - self.start_time
+		np.save("RK4_temp_max_temp_grid_time_exec_time_u10_3_rm_9_65_001_01.npy", self.results, allow_pickle=True)
 
 	@staticmethod
 	def gaussian(x: float, y: float, x0: float, y0: float, sigma: float, temp_max: float, temp_amb) -> float:
