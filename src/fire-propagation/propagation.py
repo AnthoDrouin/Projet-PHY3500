@@ -93,7 +93,7 @@ class Propagation:
 			temp_amb=self.params.ambiant_temperature
 		)
 
-		# Initial condition as a rectangle (GRID 200X200 ONLY!!!)
+		# Initial condition as a rectangle
 
 		# self.grid["temp"] = np.zeros(self.misc["dim_grid"]) + self.params.ambiant_temperature
 		# height = 30
@@ -215,10 +215,6 @@ class Propagation:
 			self.grid["s_2"] = np.minimum(self.grid["s_2"], s_2)
 			self.grid["s"] = self.grid["s_1"] + self.grid["s_2"]
 
-		#self.grid["s_1"] = s_1
-		#self.grid["s_2"] = s_2
-		#self.grid["s"] = s
-
 		self.grid["r_1"] = r_1
 		self.grid["r_2t"] = r_2t
 		# Compute c0, c1
@@ -261,8 +257,8 @@ class Propagation:
 		pbr = tqdm(self.time)
 		for idx, t in enumerate(pbr):
 
-			#self.results["temp_grid"][:, :, idx] = self.grid["temp"]
-			#self.results["temp_max"][idx] = np.max(self.grid["temp"])
+			self.results["temp_grid"][:, :, idx] = self.grid["temp"]
+			self.results["temp_max"][idx] = np.max(self.grid["temp"])
 
 			### AM ###
 
@@ -322,10 +318,6 @@ class Propagation:
 			self.update()
 
 		self.save_results()
-
-
-	def integrate_am(self):
-		pass
 
 	def d_temp_over_d_time(self):
 		"""
